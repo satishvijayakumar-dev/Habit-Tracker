@@ -1,0 +1,39 @@
+name: habit_tracker
+description: A minimal habit tracker. Track daily habits, build streaks, stay consistent.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # State management — simple, no boilerplate
+  provider: ^6.1.2
+
+  # Local SQLite database
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # Local notifications (iOS + Android)
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.4
+
+  # Date/time formatting
+  intl: ^0.19.0
+
+  # Permission handling (for notifications)
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
