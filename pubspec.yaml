@@ -27,8 +27,8 @@ dependencies:
   # Date/time formatting
   intl: ^0.19.0
 
-  # Permission handling (for notifications)
-  permission_handler: ^11.3.1
+  
+  
 
 dev_dependencies:
   flutter_test:
