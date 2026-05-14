@@ -39,9 +39,8 @@ class NotificationService {
     try {
       await init();
       if (Platform.isAndroid) {
-        final androidPlugin = _plugin
-            .resolvePlatformSpecificImplementation
-                AndroidFlutterLocalNotificationsPlugin>();
+        final androidPlugin =
+            _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
         if (androidPlugin != null) {
           final granted = await androidPlugin.requestNotificationsPermission();
           return granted ?? false;
@@ -49,10 +48,13 @@ class NotificationService {
         return true;
       }
       if (Platform.isIOS) {
-        final result = await _plugin
-            .resolvePlatformSpecificImplementation
-                IOSFlutterLocalNotificationsPlugin>()
-            ?.requestPermissions(alert: true, badge: true, sound: true);
+        final iosPlugin =
+            _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        final result = await iosPlugin?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
         return result ?? false;
       }
       return true;
@@ -118,7 +120,12 @@ class NotificationService {
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
     var scheduled = tz.TZDateTime(
-      tz.local, now.year, now.month, now.day, hour, minute,
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
     );
     if (!scheduled.isAfter(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
