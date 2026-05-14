@@ -3,11 +3,10 @@ import 'package:provider/provider.dart';
 
 import 'screens/home_shell.dart';
 import 'services/habit_provider.dart';
-import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.instance.init();
+  // await NotificationService.instance.init();
 
   // Create the provider eagerly and kick off the initial DB load, so the
   // splash-to-content transition feels fast.
