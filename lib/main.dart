@@ -1,38 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-void main() {
-  runApp(const TestApp());
-}
+import 'screens/home_shell.dart';
+import 'services/habit_provider.dart';
+import 'services/notification_service.dart';
 
-class TestApp extends StatelessWidget {
-  const TestApp({super.key});
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Habit Tracker',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      home: const TestHome(),
-    );
+  // Initialize notifications - wrapped in try-catch so a failure
+  // never prevents the app from launching.
+  try {
+    await NotificationService.instance.init();
+  } catch (e) {
+    debugPrint('Notification init failed: $e');
   }
+
+  final habitProvider = HabitProvider();
+  await habitProvider.load();
+
+  runApp(HabitTrackerApp(habitProvider: habitProvider));
 }
 
-class TestHome extends StatelessWidget {
-  const TestHome({super.key});
+class HabitTrackerApp extends StatelessWidget {
+  final HabitProvider habitProvider;
+
+  const HabitTrackerApp({super.key, required this.habitProvider});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Habit Tracker')),
-      body: const Center(
-        child: Text(
-          'App is working!',
-          style: TextStyle(fontSize: 24),
+    return ChangeNotifierProvider.value(
+      value: habitProvider,
+      child: MaterialApp(
+        title: 'Habit Tracker',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+          useMaterial3: true,
+          appBarTheme: const AppBarTheme(centerTitle: false),
+          cardTheme: CardThemeData(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.grey.shade200),
+            ),
+          ),
         ),
+        darkTheme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.indigo,
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
+        ),
+        themeMode: ThemeMode.system,
+        home: const HomeShell(),
       ),
     );
   }
