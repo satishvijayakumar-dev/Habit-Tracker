@@ -4,7 +4,6 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/habit.dart';
 
-/// Wraps the SQLite database. Single source of truth for persistence.
 class DatabaseService {
   DatabaseService._();
   static final DatabaseService instance = DatabaseService._();
@@ -22,7 +21,7 @@ class DatabaseService {
     final path = p.join(dir.path, 'habit_tracker.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE habits (
@@ -34,7 +33,11 @@ class DatabaseService {
             created_at INTEGER NOT NULL,
             is_archived INTEGER NOT NULL DEFAULT 0,
             reminder_hour INTEGER,
-            reminder_minute INTEGER
+            reminder_minute INTEGER,
+            habit_type TEXT NOT NULL DEFAULT 'build',
+            tracking_type TEXT NOT NULL DEFAULT 'checkoff',
+            target_amount INTEGER NOT NULL DEFAULT 1,
+            unit TEXT NOT NULL DEFAULT ''
           )
         ''');
         await db.execute('''
@@ -42,6 +45,8 @@ class DatabaseService {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             habit_id INTEGER NOT NULL,
             date INTEGER NOT NULL,
+            amount INTEGER NOT NULL DEFAULT 1,
+            note TEXT NOT NULL DEFAULT '',
             FOREIGN KEY (habit_id) REFERENCES habits (id) ON DELETE CASCADE,
             UNIQUE (habit_id, date)
           )
@@ -50,10 +55,33 @@ class DatabaseService {
           'CREATE INDEX idx_completions_habit_id ON completions (habit_id)',
         );
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Migrate from v1 to v2: add new columns
+          await db.execute(
+            "ALTER TABLE habits ADD COLUMN habit_type TEXT NOT NULL DEFAULT 'build'",
+          );
+          await db.execute(
+            "ALTER TABLE habits ADD COLUMN tracking_type TEXT NOT NULL DEFAULT 'checkoff'",
+          );
+          await db.execute(
+            "ALTER TABLE habits ADD COLUMN target_amount INTEGER NOT NULL DEFAULT 1",
+          );
+          await db.execute(
+            "ALTER TABLE habits ADD COLUMN unit TEXT NOT NULL DEFAULT ''",
+          );
+          await db.execute(
+            "ALTER TABLE completions ADD COLUMN amount INTEGER NOT NULL DEFAULT 1",
+          );
+          await db.execute(
+            "ALTER TABLE completions ADD COLUMN note TEXT NOT NULL DEFAULT ''",
+          );
+        }
+      },
     );
   }
 
-  // ── Habits ─────────────────────────────────────────────────────────────────
+  // -- Habits --
 
   Future<List<Habit>> getActiveHabits() async {
     final db = await database;
@@ -86,13 +114,11 @@ class DatabaseService {
 
   Future<void> deleteHabit(int habitId) async {
     final db = await database;
-    // Cascade handles completions, but be explicit for safety on platforms
-    // where foreign keys aren't enforced by default.
     await db.delete('completions', where: 'habit_id = ?', whereArgs: [habitId]);
     await db.delete('habits', where: 'id = ?', whereArgs: [habitId]);
   }
 
-  // ── Completions ────────────────────────────────────────────────────────────
+  // -- Completions --
 
   Future<List<Completion>> getCompletionsForHabit(int habitId) async {
     final db = await database;
@@ -105,9 +131,7 @@ class DatabaseService {
     return rows.map(Completion.fromMap).toList();
   }
 
-  /// Adds a completion for the given habit on the given date (normalized to
-  /// midnight). The UNIQUE index makes this idempotent.
-  Future<void> addCompletion(int habitId, DateTime date) async {
+  Future<void> addCompletion(int habitId, DateTime date, {int amount = 1, String note = ''}) async {
     final db = await database;
     final dayKey = DateTime(date.year, date.month, date.day);
     await db.insert(
@@ -115,8 +139,10 @@ class DatabaseService {
       {
         'habit_id': habitId,
         'date': dayKey.millisecondsSinceEpoch,
+        'amount': amount,
+        'note': note,
       },
-      conflictAlgorithm: ConflictAlgorithm.ignore,
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
@@ -128,5 +154,28 @@ class DatabaseService {
       where: 'habit_id = ? AND date = ?',
       whereArgs: [habitId, dayKey.millisecondsSinceEpoch],
     );
+  }
+
+  Future<void> updateCompletionNote(int habitId, DateTime date, String note) async {
+    final db = await database;
+    final dayKey = DateTime(date.year, date.month, date.day);
+    await db.update(
+      'completions',
+      {'note': note},
+      where: 'habit_id = ? AND date = ?',
+      whereArgs: [habitId, dayKey.millisecondsSinceEpoch],
+    );
+  }
+
+  Future<Completion?> getCompletion(int habitId, DateTime date) async {
+    final db = await database;
+    final dayKey = DateTime(date.year, date.month, date.day);
+    final rows = await db.query(
+      'completions',
+      where: 'habit_id = ? AND date = ?',
+      whereArgs: [habitId, dayKey.millisecondsSinceEpoch],
+    );
+    if (rows.isEmpty) return null;
+    return Completion.fromMap(rows.first);
   }
 }

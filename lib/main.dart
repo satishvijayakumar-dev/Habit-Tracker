@@ -7,15 +7,10 @@ import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.instance.init();
 
-  // Initialize notifications - wrapped in try-catch so a failure
-  // never prevents the app from launching.
-  try {
-    await NotificationService.instance.init();
-  } catch (e) {
-    debugPrint('Notification init failed: $e');
-  }
-
+  // Create the provider eagerly and kick off the initial DB load, so the
+  // splash-to-content transition feels fast.
   final habitProvider = HabitProvider();
   await habitProvider.load();
 
@@ -38,7 +33,7 @@ class HabitTrackerApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
           useMaterial3: true,
           appBarTheme: const AppBarTheme(centerTitle: false),
-          cardTheme: CardThemeData(
+          cardTheme: CardTheme(
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),

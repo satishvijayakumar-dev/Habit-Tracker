@@ -7,9 +7,7 @@ import '../services/notification_service.dart';
 import '../widgets/habit_style.dart';
 
 class AddEditHabitScreen extends StatefulWidget {
-  /// Pass an existing habit to edit; omit for a new habit.
   final Habit? habit;
-
   const AddEditHabitScreen({super.key, this.habit});
 
   @override
@@ -20,11 +18,15 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
+  final _targetController = TextEditingController(text: '1');
+  final _unitController = TextEditingController();
 
   String _color = 'blue';
   String _icon = 'check_circle';
   bool _reminderEnabled = false;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
+  String _habitType = 'build';
+  String _trackingType = 'checkoff';
 
   bool get _isEditing => widget.habit != null;
 
@@ -38,11 +40,12 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
       _color = h.colorName;
       _icon = h.iconName;
       _reminderEnabled = h.hasReminder;
+      _habitType = h.habitType;
+      _trackingType = h.trackingType;
+      _targetController.text = '${h.targetAmount}';
+      _unitController.text = h.unit;
       if (h.hasReminder) {
-        _reminderTime = TimeOfDay(
-          hour: h.reminderHour!,
-          minute: h.reminderMinute!,
-        );
+        _reminderTime = TimeOfDay(hour: h.reminderHour!, minute: h.reminderMinute!);
       }
     }
   }
@@ -51,14 +54,14 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
   void dispose() {
     _nameController.dispose();
     _descController.dispose();
+    _targetController.dispose();
+    _unitController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // If turning on a reminder, request permission first. If it's denied,
-    // save the habit anyway but without the reminder, and let the user know.
     var saveWithReminder = _reminderEnabled;
     if (_reminderEnabled) {
       final granted = await NotificationService.instance.requestPermissions();
@@ -67,9 +70,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                'Notification permission denied — habit saved without reminder.',
-              ),
+              content: Text('Notification permission denied — habit saved without reminder.'),
             ),
           );
         }
@@ -77,6 +78,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
     }
 
     final provider = context.read<HabitProvider>();
+    final target = int.tryParse(_targetController.text) ?? 1;
 
     if (_isEditing) {
       final updated = widget.habit!.copyWith(
@@ -87,6 +89,10 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
         clearReminder: !saveWithReminder,
         reminderHour: saveWithReminder ? _reminderTime.hour : null,
         reminderMinute: saveWithReminder ? _reminderTime.minute : null,
+        habitType: _habitType,
+        trackingType: _trackingType,
+        targetAmount: target,
+        unit: _unitController.text.trim(),
       );
       await provider.updateHabit(updated);
     } else {
@@ -98,6 +104,10 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
         createdAt: DateTime.now(),
         reminderHour: saveWithReminder ? _reminderTime.hour : null,
         reminderMinute: saveWithReminder ? _reminderTime.minute : null,
+        habitType: _habitType,
+        trackingType: _trackingType,
+        targetAmount: target,
+        unit: _unitController.text.trim(),
       );
       await provider.addHabit(newHabit);
     }
@@ -106,10 +116,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _reminderTime,
-    );
+    final picked = await showTimePicker(context: context, initialTime: _reminderTime);
     if (picked != null) setState(() => _reminderTime = picked);
   }
 
@@ -119,10 +126,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit habit' : 'New habit'),
         actions: [
-          TextButton(
-            onPressed: _save,
-            child: const Text('Save'),
-          ),
+          TextButton(onPressed: _save, child: const Text('Save')),
         ],
       ),
       body: Form(
@@ -130,12 +134,35 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Habit Type: Build or Quit
+            const _SectionLabel('Type'),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'build', label: Text('Build'), icon: Icon(Icons.trending_up)),
+                ButtonSegment(value: 'quit', label: Text('Quit'), icon: Icon(Icons.block)),
+              ],
+              selected: {_habitType},
+              onSelectionChanged: (val) => setState(() => _habitType = val.first),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _habitType == 'build'
+                  ? 'Build a new positive habit'
+                  : 'Break a bad habit — track days free',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 20),
+
+            // Name
             TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Name',
-                hintText: 'e.g. Exercise, Read, Meditate',
-                border: OutlineInputBorder(),
+                hintText: _habitType == 'build'
+                    ? 'e.g. Exercise, Read, Meditate'
+                    : 'e.g. Smoking, Junk Food, Social Media',
+                border: const OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.next,
               validator: (v) {
@@ -144,6 +171,8 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
               },
             ),
             const SizedBox(height: 16),
+
+            // Description
             TextFormField(
               controller: _descController,
               decoration: const InputDecoration(
@@ -154,6 +183,68 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
               maxLines: 4,
             ),
             const SizedBox(height: 24),
+
+            // Tracking Type (only for Build habits)
+            if (_habitType == 'build') ...[
+              const _SectionLabel('Tracking'),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'checkoff', label: Text('Check off')),
+                  ButtonSegment(value: 'amount', label: Text('Track amount')),
+                ],
+                selected: {_trackingType},
+                onSelectionChanged: (val) => setState(() => _trackingType = val.first),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _trackingType == 'checkoff'
+                    ? 'Simple done / not done each day'
+                    : 'Track a quantity (glasses, minutes, pages...)',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+
+              // Amount fields
+              if (_trackingType == 'amount') ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _targetController,
+                        decoration: const InputDecoration(
+                          labelText: 'Daily target',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (v) {
+                          if (_trackingType == 'amount') {
+                            final n = int.tryParse(v ?? '');
+                            if (n == null || n < 1) return 'Enter a number';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _unitController,
+                        decoration: const InputDecoration(
+                          labelText: 'Unit',
+                          hintText: 'e.g. glasses, minutes',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 12),
+            ],
+
+            // Colour
             const _SectionLabel('Colour'),
             const SizedBox(height: 8),
             Wrap(
@@ -179,6 +270,8 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
+
+            // Icon
             const _SectionLabel('Icon'),
             const SizedBox(height: 8),
             Wrap(
@@ -197,9 +290,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
                           : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: selected
-                            ? colorFor(_color)
-                            : Colors.transparent,
+                        color: selected ? colorFor(_color) : Colors.transparent,
                         width: 2,
                       ),
                     ),
@@ -209,6 +300,8 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
+
+            // Reminder
             const _SectionLabel('Reminder'),
             const SizedBox(height: 8),
             Card(
