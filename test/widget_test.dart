@@ -11,7 +11,13 @@ void main() {
 
     expect(find.text('ActivHealth'), findsOneWidget);
     expect(
-        find.text('Choose the loop you want to improve first'), findsOneWidget);
-    expect(find.text('Health & Energy'), findsOneWidget);
+      find.text('Question 1 of 4'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Which routine looks most like your life right now?'),
+      findsOneWidget,
+    );
+    expect(find.text('Gym or training focused'), findsOneWidget);
   });
 }
