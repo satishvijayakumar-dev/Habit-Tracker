@@ -22,7 +22,7 @@ class TodayScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Add habit',
+            tooltip: 'Add loop',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const AddEditHabitScreen(),
@@ -48,7 +48,7 @@ class TodayScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${provider.completedTodayCount} of ${habits.length} completed',
+                  '${provider.completedTodayCount} of ${habits.length} loops protected',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -102,18 +102,19 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.check_circle_outline,
+              Icons.route_outlined,
               size: 64,
-              color: Colors.grey.shade400,
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 16),
             const Text(
-              'No habits yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              'Design your first ActivHealth loop',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
-              'Add your first habit to get started.',
+              'Start with an anchor, a tiny action, a fallback for busy days, and a celebration that makes the loop feel finished.',
               style: TextStyle(color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
@@ -121,7 +122,7 @@ class _EmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onAdd,
               icon: const Icon(Icons.add),
-              label: const Text('Add habit'),
+              label: const Text('Create loop'),
             ),
           ],
         ),

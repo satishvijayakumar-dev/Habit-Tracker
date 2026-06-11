@@ -20,6 +20,9 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
   final _descController = TextEditingController();
   final _targetController = TextEditingController(text: '1');
   final _unitController = TextEditingController();
+  final _anchorController = TextEditingController();
+  final _fallbackController = TextEditingController();
+  final _celebrationController = TextEditingController();
 
   String _color = 'blue';
   String _icon = 'check_circle';
@@ -27,6 +30,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
   TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
   String _habitType = 'build';
   String _trackingType = 'checkoff';
+  String _difficulty = 'tiny';
 
   bool get _isEditing => widget.habit != null;
 
@@ -44,8 +48,13 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
       _trackingType = h.trackingType;
       _targetController.text = '${h.targetAmount}';
       _unitController.text = h.unit;
+      _anchorController.text = h.anchor;
+      _fallbackController.text = h.fallbackBehavior;
+      _celebrationController.text = h.celebration;
+      _difficulty = h.difficulty;
       if (h.hasReminder) {
-        _reminderTime = TimeOfDay(hour: h.reminderHour!, minute: h.reminderMinute!);
+        _reminderTime =
+            TimeOfDay(hour: h.reminderHour!, minute: h.reminderMinute!);
       }
     }
   }
@@ -56,12 +65,16 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
     _descController.dispose();
     _targetController.dispose();
     _unitController.dispose();
+    _anchorController.dispose();
+    _fallbackController.dispose();
+    _celebrationController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final provider = context.read<HabitProvider>();
     var saveWithReminder = _reminderEnabled;
     if (_reminderEnabled) {
       final granted = await NotificationService.instance.requestPermissions();
@@ -70,14 +83,14 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Notification permission denied — habit saved without reminder.'),
+              content: Text(
+                  'Notification permission denied — habit saved without reminder.'),
             ),
           );
         }
       }
     }
 
-    final provider = context.read<HabitProvider>();
     final target = int.tryParse(_targetController.text) ?? 1;
 
     if (_isEditing) {
@@ -93,6 +106,11 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
         trackingType: _trackingType,
         targetAmount: target,
         unit: _unitController.text.trim(),
+        anchor: _anchorController.text.trim(),
+        fallbackBehavior: _fallbackController.text.trim(),
+        celebration: _celebrationController.text.trim(),
+        pathName: provider.selectedPath ?? widget.habit!.pathName,
+        difficulty: _difficulty,
       );
       await provider.updateHabit(updated);
     } else {
@@ -108,6 +126,11 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
         trackingType: _trackingType,
         targetAmount: target,
         unit: _unitController.text.trim(),
+        anchor: _anchorController.text.trim(),
+        fallbackBehavior: _fallbackController.text.trim(),
+        celebration: _celebrationController.text.trim(),
+        pathName: provider.selectedPath ?? '',
+        difficulty: _difficulty,
       );
       await provider.addHabit(newHabit);
     }
@@ -116,7 +139,8 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(context: context, initialTime: _reminderTime);
+    final picked =
+        await showTimePicker(context: context, initialTime: _reminderTime);
     if (picked != null) setState(() => _reminderTime = picked);
   }
 
@@ -124,7 +148,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit habit' : 'New habit'),
+        title: Text(_isEditing ? 'Edit loop' : 'New ActivHealth loop'),
         actions: [
           TextButton(onPressed: _save, child: const Text('Save')),
         ],
@@ -134,22 +158,36 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (!_isEditing &&
+                context.watch<HabitProvider>().hasSelectedPath) ...[
+              _PathBanner(
+                  pathName: context.watch<HabitProvider>().selectedPath!),
+              const SizedBox(height: 20),
+            ],
+
             // Habit Type: Build or Quit
             const _SectionLabel('Type'),
             const SizedBox(height: 8),
             SegmentedButton<String>(
               segments: const [
-                ButtonSegment(value: 'build', label: Text('Build'), icon: Icon(Icons.trending_up)),
-                ButtonSegment(value: 'quit', label: Text('Quit'), icon: Icon(Icons.block)),
+                ButtonSegment(
+                    value: 'build',
+                    label: Text('Build'),
+                    icon: Icon(Icons.trending_up)),
+                ButtonSegment(
+                    value: 'quit',
+                    label: Text('Quit'),
+                    icon: Icon(Icons.block)),
               ],
               selected: {_habitType},
-              onSelectionChanged: (val) => setState(() => _habitType = val.first),
+              onSelectionChanged: (val) =>
+                  setState(() => _habitType = val.first),
             ),
             const SizedBox(height: 4),
             Text(
               _habitType == 'build'
-                  ? 'Build a new positive habit'
-                  : 'Break a bad habit — track days free',
+                  ? 'Build a positive loop'
+                  : 'Break a pattern - track days free',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 20),
@@ -184,6 +222,51 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
             ),
             const SizedBox(height: 24),
 
+            const _SectionLabel('Behavior loop'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _anchorController,
+              decoration: const InputDecoration(
+                labelText: 'Anchor',
+                hintText: 'After I brush my teeth...',
+                border: OutlineInputBorder(),
+              ),
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _fallbackController,
+              decoration: const InputDecoration(
+                labelText: 'Smallest fallback',
+                hintText: 'If I am busy, I will do the 30-second version',
+                border: OutlineInputBorder(),
+              ),
+              minLines: 2,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _celebrationController,
+              decoration: const InputDecoration(
+                labelText: 'Celebration',
+                hintText: 'I will say: that counts',
+                border: OutlineInputBorder(),
+              ),
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'tiny', label: Text('Tiny')),
+                ButtonSegment(value: 'manageable', label: Text('Manageable')),
+                ButtonSegment(value: 'challenging', label: Text('Stretch')),
+              ],
+              selected: {_difficulty},
+              onSelectionChanged: (val) =>
+                  setState(() => _difficulty = val.first),
+            ),
+            const SizedBox(height: 24),
+
             // Tracking Type (only for Build habits)
             if (_habitType == 'build') ...[
               const _SectionLabel('Tracking'),
@@ -194,7 +277,8 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
                   ButtonSegment(value: 'amount', label: Text('Track amount')),
                 ],
                 selected: {_trackingType},
-                onSelectionChanged: (val) => setState(() => _trackingType = val.first),
+                onSelectionChanged: (val) =>
+                    setState(() => _trackingType = val.first),
               ),
               const SizedBox(height: 4),
               Text(
@@ -286,7 +370,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
                     height: 48,
                     decoration: BoxDecoration(
                       color: selected
-                          ? colorFor(_color).withOpacity(0.15)
+                          ? colorFor(_color).withValues(alpha: 0.15)
                           : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
@@ -345,6 +429,38 @@ class _SectionLabel extends StatelessWidget {
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: Colors.grey.shade700,
+      ),
+    );
+  }
+}
+
+class _PathBanner extends StatelessWidget {
+  final String pathName;
+
+  const _PathBanner({required this.pathName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.route_outlined),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$pathName path: design the smallest loop that still counts.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

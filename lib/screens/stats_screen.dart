@@ -17,8 +17,7 @@ class StatsScreen extends StatelessWidget {
       0,
       (sum, h) => sum + (h.id != null ? provider.currentStreak(h.id!) : 0),
     );
-    final avgStreak =
-        habits.isEmpty ? 0.0 : totalStreak / habits.length;
+    final avgStreak = habits.isEmpty ? 0.0 : totalStreak / habits.length;
 
     final sorted = [...habits]..sort((a, b) {
         if (a.id == null || b.id == null) return 0;
@@ -30,7 +29,7 @@ class StatsScreen extends StatelessWidget {
       body: habits.isEmpty
           ? Center(
               child: Text(
-                'Add some habits to see stats.',
+                'Create loops to see stats.',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             )
@@ -41,7 +40,7 @@ class StatsScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _SummaryCard(
-                        label: 'Active habits',
+                        label: 'Active loops',
                         value: '${habits.length}',
                         color: Colors.blue,
                         icon: Icons.list_alt,

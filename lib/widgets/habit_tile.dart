@@ -48,6 +48,18 @@ class HabitTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     _buildSubtitle(provider, id, streak),
+                    if (habit.anchor.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        'After ${habit.anchor}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -93,7 +105,8 @@ class HabitTile extends StatelessWidget {
     provider.toggleToday(id);
   }
 
-  Widget _buildAmountAction(BuildContext context, HabitProvider provider, int id) {
+  Widget _buildAmountAction(
+      BuildContext context, HabitProvider provider, int id) {
     final current = provider.todayAmount(id);
     final target = habit.targetAmount;
     final done = current >= target;
@@ -164,7 +177,8 @@ class HabitTile extends StatelessWidget {
     );
   }
 
-  Widget _buildQuitAction(BuildContext context, HabitProvider provider, int id) {
+  Widget _buildQuitAction(
+      BuildContext context, HabitProvider provider, int id) {
     final slippedToday = provider.isCompletedToday(id);
     return IconButton(
       iconSize: 32,
@@ -211,7 +225,9 @@ class HabitTile extends StatelessWidget {
     if (habit.isQuitHabit) {
       return Row(
         children: [
-          Icon(Icons.shield, size: 14, color: streak > 0 ? Colors.green : Colors.grey.shade400),
+          Icon(Icons.shield,
+              size: 14,
+              color: streak > 0 ? Colors.green : Colors.grey.shade400),
           const SizedBox(width: 4),
           Text(
             '$streak ${streak == 1 ? "day" : "days"} free',
@@ -225,7 +241,7 @@ class HabitTile extends StatelessWidget {
       final current = provider.todayAmount(id);
       return Row(
         children: [
-          Icon(Icons.track_changes, size: 14, color: Colors.blue),
+          const Icon(Icons.track_changes, size: 14, color: Colors.blue),
           const SizedBox(width: 4),
           Text(
             '$current/${habit.targetAmount} ${habit.unit}',

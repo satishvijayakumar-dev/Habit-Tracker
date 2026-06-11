@@ -30,7 +30,7 @@ class HabitTrackerApp extends StatelessWidget {
     return ChangeNotifierProvider.value(
       value: habitProvider,
       child: MaterialApp(
-        title: 'Habit Tracker',
+        title: 'ActivHealth',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),

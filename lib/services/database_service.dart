@@ -21,7 +21,7 @@ class DatabaseService {
     final path = p.join(dir.path, 'habit_tracker.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE habits (
@@ -37,7 +37,12 @@ class DatabaseService {
             habit_type TEXT NOT NULL DEFAULT 'build',
             tracking_type TEXT NOT NULL DEFAULT 'checkoff',
             target_amount INTEGER NOT NULL DEFAULT 1,
-            unit TEXT NOT NULL DEFAULT ''
+            unit TEXT NOT NULL DEFAULT '',
+            anchor TEXT NOT NULL DEFAULT '',
+            fallback_behavior TEXT NOT NULL DEFAULT '',
+            celebration TEXT NOT NULL DEFAULT '',
+            path_name TEXT NOT NULL DEFAULT '',
+            difficulty TEXT NOT NULL DEFAULT 'tiny'
           )
         ''');
         await db.execute('''
@@ -54,6 +59,12 @@ class DatabaseService {
         await db.execute(
           'CREATE INDEX idx_completions_habit_id ON completions (habit_id)',
         );
+        await db.execute('''
+          CREATE TABLE settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+          )
+        ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -76,6 +87,29 @@ class DatabaseService {
           await db.execute(
             "ALTER TABLE completions ADD COLUMN note TEXT NOT NULL DEFAULT ''",
           );
+        }
+        if (oldVersion < 3) {
+          await db.execute(
+            "ALTER TABLE habits ADD COLUMN anchor TEXT NOT NULL DEFAULT ''",
+          );
+          await db.execute(
+            "ALTER TABLE habits ADD COLUMN fallback_behavior TEXT NOT NULL DEFAULT ''",
+          );
+          await db.execute(
+            "ALTER TABLE habits ADD COLUMN celebration TEXT NOT NULL DEFAULT ''",
+          );
+          await db.execute(
+            "ALTER TABLE habits ADD COLUMN path_name TEXT NOT NULL DEFAULT ''",
+          );
+          await db.execute(
+            "ALTER TABLE habits ADD COLUMN difficulty TEXT NOT NULL DEFAULT 'tiny'",
+          );
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+              key TEXT PRIMARY KEY,
+              value TEXT NOT NULL
+            )
+          ''');
         }
       },
     );
@@ -131,7 +165,8 @@ class DatabaseService {
     return rows.map(Completion.fromMap).toList();
   }
 
-  Future<void> addCompletion(int habitId, DateTime date, {int amount = 1, String note = ''}) async {
+  Future<void> addCompletion(int habitId, DateTime date,
+      {int amount = 1, String note = ''}) async {
     final db = await database;
     final dayKey = DateTime(date.year, date.month, date.day);
     await db.insert(
@@ -156,7 +191,8 @@ class DatabaseService {
     );
   }
 
-  Future<void> updateCompletionNote(int habitId, DateTime date, String note) async {
+  Future<void> updateCompletionNote(
+      int habitId, DateTime date, String note) async {
     final db = await database;
     final dayKey = DateTime(date.year, date.month, date.day);
     await db.update(
@@ -177,5 +213,29 @@ class DatabaseService {
     );
     if (rows.isEmpty) return null;
     return Completion.fromMap(rows.first);
+  }
+
+  // -- Settings --
+
+  Future<String?> getSetting(String key) async {
+    final db = await database;
+    final rows = await db.query(
+      'settings',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['value'] as String;
+  }
+
+  Future<void> setSetting(String key, String value) async {
+    final db = await database;
+    await db.insert(
+      'settings',
+      {'key': key, 'value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 }

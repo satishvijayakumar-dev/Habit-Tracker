@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'all_habits_screen.dart';
+import 'coach_screen.dart';
+import 'path_onboarding_screen.dart';
 import 'stats_screen.dart';
 import 'today_screen.dart';
+import '../services/habit_provider.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -17,12 +21,18 @@ class _HomeShellState extends State<HomeShell> {
   // Use IndexedStack so each tab keeps its scroll position.
   final _pages = const [
     TodayScreen(),
+    CoachScreen(),
     AllHabitsScreen(),
     StatsScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<HabitProvider>();
+    if (!provider.hasSelectedPath) {
+      return const PathOnboardingScreen();
+    }
+
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: NavigationBar(
@@ -35,9 +45,14 @@ class _HomeShellState extends State<HomeShell> {
             label: 'Today',
           ),
           NavigationDestination(
+            icon: Icon(Icons.psychology_alt_outlined),
+            selectedIcon: Icon(Icons.psychology_alt),
+            label: 'Coach',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.list_alt_outlined),
             selectedIcon: Icon(Icons.list_alt),
-            label: 'Habits',
+            label: 'Loops',
           ),
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),

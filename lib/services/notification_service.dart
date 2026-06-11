@@ -39,8 +39,8 @@ class NotificationService {
     try {
       await init();
       if (Platform.isAndroid) {
-        final androidPlugin =
-            _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
         if (androidPlugin != null) {
           final granted = await androidPlugin.requestNotificationsPermission();
           return granted ?? false;
@@ -48,8 +48,8 @@ class NotificationService {
         return true;
       }
       if (Platform.isIOS) {
-        final iosPlugin =
-            _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        final iosPlugin = _plugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
         final result = await iosPlugin?.requestPermissions(
           alert: true,
           badge: true,
@@ -83,7 +83,7 @@ class NotificationService {
           android: AndroidNotificationDetails(
             'habit_reminders',
             'Habit Reminders',
-            channelDescription: 'Daily reminders for your habits',
+            channelDescription: 'Daily reminders for your ActivHealth loops',
             importance: Importance.high,
             priority: Priority.high,
           ),

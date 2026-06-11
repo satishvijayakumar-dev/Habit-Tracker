@@ -1,4 +1,4 @@
-# habit_tracker
+# ActivHealth
 
 A new Flutter project.
 

@@ -32,13 +32,18 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
+    final provider = context.read<HabitProvider>();
+    final navigator = Navigator.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete habit?'),
-        content: const Text('This will permanently delete the habit and all its history.'),
+        title: const Text('Delete loop?'),
+        content: const Text(
+            'This will permanently delete the loop and all its history.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -47,13 +52,14 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         ],
       ),
     );
-    if (ok == true && mounted) {
-      await context.read<HabitProvider>().deleteHabit(widget.habitId);
-      if (mounted) Navigator.of(context).pop();
-    }
+    if (ok != true || !mounted) return;
+    await provider.deleteHabit(widget.habitId);
+    if (!mounted) return;
+    navigator.pop();
   }
 
-  void _showNoteDialog(BuildContext context, HabitProvider provider, Habit habit) {
+  void _showNoteDialog(
+      BuildContext context, HabitProvider provider, Habit habit) {
     final existing = provider.completionDetailFor(habit.id!, DateTime.now());
     _noteController.text = existing?.note ?? '';
 
@@ -71,7 +77,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               provider.addNote(habit.id!, _noteController.text.trim());
@@ -107,7 +115,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => AddEditHabitScreen(habit: habit)),
+              MaterialPageRoute(
+                  builder: (_) => AddEditHabitScreen(habit: habit)),
             ),
           ),
           IconButton(
@@ -129,10 +138,11 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: colorFor(habit.colorName).withOpacity(0.15),
+                      color: colorFor(habit.colorName).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(iconFor(habit.iconName), color: colorFor(habit.colorName), size: 28),
+                    child: Icon(iconFor(habit.iconName),
+                        color: colorFor(habit.colorName), size: 28),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -141,12 +151,17 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(habit.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(habit.name,
+                                style: const TextStyle(
+                                    fontSize: 20, fontWeight: FontWeight.bold)),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: habit.isQuitHabit ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                                color: habit.isQuitHabit
+                                    ? Colors.red.withValues(alpha: 0.1)
+                                    : Colors.green.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -154,7 +169,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: habit.isQuitHabit ? Colors.red : Colors.green,
+                                  color: habit.isQuitHabit
+                                      ? Colors.red
+                                      : Colors.green,
                                 ),
                               ),
                             ),
@@ -162,13 +179,16 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                         ),
                         if (habit.description.isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text(habit.description, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                          Text(habit.description,
+                              style: TextStyle(
+                                  fontSize: 13, color: Colors.grey.shade600)),
                         ],
                         if (habit.isAmountTracking) ...[
                           const SizedBox(height: 4),
                           Text(
                             'Target: ${habit.targetAmount} ${habit.unit}',
-                            style: TextStyle(fontSize: 12, color: Colors.blue),
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.blue),
                           ),
                         ],
                       ],
@@ -180,6 +200,13 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
           ),
           const SizedBox(height: 12),
 
+          if (habit.anchor.isNotEmpty ||
+              habit.fallbackBehavior.isNotEmpty ||
+              habit.celebration.isNotEmpty) ...[
+            _LoopBlueprintCard(habit: habit),
+            const SizedBox(height: 12),
+          ],
+
           // Stats row
           Row(
             children: [
@@ -188,7 +215,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                   label: habit.isQuitHabit ? 'Days free' : 'Current streak',
                   value: '$streak',
                   unit: streak == 1 ? 'day' : 'days',
-                  icon: habit.isQuitHabit ? Icons.shield : Icons.local_fire_department,
+                  icon: habit.isQuitHabit
+                      ? Icons.shield
+                      : Icons.local_fire_department,
                   color: habit.isQuitHabit ? Colors.green : Colors.orange,
                 ),
               ),
@@ -234,12 +263,17 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(icon: const Icon(Icons.chevron_left), onPressed: () => _shiftMonth(-1)),
+              IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () => _shiftMonth(-1)),
               Text(
                 DateFormat('MMMM yyyy').format(_month),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
-              IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => _shiftMonth(1)),
+              IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: () => _shiftMonth(1)),
             ],
           ),
           const SizedBox(height: 8),
@@ -248,24 +282,26 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
 
           // Diary notes section
           if (notes.isNotEmpty) ...[
-            const Text('Diary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const Text('Diary',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             ...notes.take(10).map((c) => Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      DateFormat('EEE, MMM d yyyy').format(c.date),
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          DateFormat('EEE, MMM d yyyy').format(c.date),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(c.note, style: const TextStyle(fontSize: 14)),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(c.note, style: const TextStyle(fontSize: 14)),
-                  ],
-                ),
-              ),
-            )),
+                  ),
+                )),
           ],
           const SizedBox(height: 24),
         ],
@@ -277,17 +313,23 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     return FilledButton.icon(
       onPressed: () => provider.toggleToday(habit.id!),
       icon: Icon(
-        provider.isCompletedToday(habit.id!) ? Icons.check_circle : Icons.radio_button_unchecked,
+        provider.isCompletedToday(habit.id!)
+            ? Icons.check_circle
+            : Icons.radio_button_unchecked,
       ),
-      label: Text(provider.isCompletedToday(habit.id!) ? 'Completed today' : 'Mark as complete'),
+      label: Text(provider.isCompletedToday(habit.id!)
+          ? 'Completed today'
+          : 'Mark as complete'),
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
-        backgroundColor: provider.isCompletedToday(habit.id!) ? Colors.green : null,
+        backgroundColor:
+            provider.isCompletedToday(habit.id!) ? Colors.green : null,
       ),
     );
   }
 
-  Widget _buildAmountButton(BuildContext context, HabitProvider provider, Habit habit) {
+  Widget _buildAmountButton(
+      BuildContext context, HabitProvider provider, Habit habit) {
     final current = provider.todayAmount(habit.id!);
     final done = current >= habit.targetAmount;
     return FilledButton.icon(
@@ -303,7 +345,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     );
   }
 
-  Widget _buildQuitButton(BuildContext context, HabitProvider provider, Habit habit) {
+  Widget _buildQuitButton(
+      BuildContext context, HabitProvider provider, Habit habit) {
     final slippedToday = provider.isCompletedToday(habit.id!);
     return FilledButton.icon(
       onPressed: () {
@@ -316,7 +359,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
               title: const Text('Log a slip?'),
               content: Text('This resets your "${habit.name}" streak.'),
               actions: [
-                TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+                TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancel')),
                 FilledButton(
                   style: FilledButton.styleFrom(backgroundColor: Colors.red),
                   onPressed: () {
@@ -344,7 +389,12 @@ class _StatCard extends StatelessWidget {
   final String label, value, unit;
   final IconData icon;
   final Color color;
-  const _StatCard({required this.label, required this.value, required this.unit, required this.icon, required this.color});
+  const _StatCard(
+      {required this.label,
+      required this.value,
+      required this.unit,
+      required this.icon,
+      required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -357,20 +407,102 @@ class _StatCard extends StatelessWidget {
             Row(children: [
               Icon(icon, color: color, size: 16),
               const SizedBox(width: 6),
-              Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              Text(label,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             ]),
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 28, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 4),
-                Text(unit, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                Text(unit,
+                    style:
+                        TextStyle(fontSize: 13, color: Colors.grey.shade600)),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _LoopBlueprintCard extends StatelessWidget {
+  final Habit habit;
+
+  const _LoopBlueprintCard({required this.habit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.route_outlined, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Loop blueprint',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (habit.pathName.isNotEmpty)
+              _LoopLine(label: 'Path', value: habit.pathName),
+            if (habit.anchor.isNotEmpty)
+              _LoopLine(label: 'After I', value: habit.anchor),
+            _LoopLine(label: 'I will', value: habit.name),
+            if (habit.fallbackBehavior.isNotEmpty)
+              _LoopLine(label: 'Fallback', value: habit.fallbackBehavior),
+            if (habit.celebration.isNotEmpty)
+              _LoopLine(label: 'Celebrate', value: habit.celebration),
+            _LoopLine(label: 'Size', value: habit.difficulty),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoopLine extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _LoopLine({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 78,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -383,7 +515,6 @@ class _MonthGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final calendar = Calendar();
     final firstOfMonth = DateTime(month.year, month.month, 1);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final leadingBlanks = firstOfMonth.weekday % 7;
@@ -392,7 +523,11 @@ class _MonthGrid extends StatelessWidget {
     const weekdayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     for (final l in weekdayLabels) {
       cells.add(Center(
-        child: Text(l, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
+        child: Text(l,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600)),
       ));
     }
 

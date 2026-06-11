@@ -16,7 +16,7 @@ class AllHabitsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('All habits'),
+        title: const Text('All loops'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -31,7 +31,7 @@ class AllHabitsScreen extends StatelessWidget {
       body: habits.isEmpty
           ? Center(
               child: Text(
-                'No habits yet.',
+                'No loops yet.',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             )
@@ -39,8 +39,7 @@ class AllHabitsScreen extends StatelessWidget {
               itemCount: habits.length,
               itemBuilder: (context, i) {
                 final h = habits[i];
-                final streak =
-                    h.id != null ? provider.currentStreak(h.id!) : 0;
+                final streak = h.id != null ? provider.currentStreak(h.id!) : 0;
                 return Dismissible(
                   key: ValueKey(h.id),
                   direction: DismissDirection.endToStart,
@@ -56,20 +55,18 @@ class AllHabitsScreen extends StatelessWidget {
                           builder: (ctx) => AlertDialog(
                             title: Text('Delete "${h.name}"?'),
                             content: const Text(
-                              'This will permanently delete the habit and all its history.',
+                              'This will permanently delete the loop and all its history.',
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () =>
-                                    Navigator.of(ctx).pop(false),
+                                onPressed: () => Navigator.of(ctx).pop(false),
                                 child: const Text('Cancel'),
                               ),
                               FilledButton(
                                 style: FilledButton.styleFrom(
                                   backgroundColor: Colors.red,
                                 ),
-                                onPressed: () =>
-                                    Navigator.of(ctx).pop(true),
+                                onPressed: () => Navigator.of(ctx).pop(true),
                                 child: const Text('Delete'),
                               ),
                             ],
@@ -92,8 +89,7 @@ class AllHabitsScreen extends StatelessWidget {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            HabitDetailScreen(habitId: h.id!),
+                        builder: (_) => HabitDetailScreen(habitId: h.id!),
                       ),
                     ),
                   ),

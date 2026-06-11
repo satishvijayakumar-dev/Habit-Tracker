@@ -11,15 +11,20 @@ class HabitProvider extends ChangeNotifier {
   List<Habit> _habits = [];
   final Map<int, Set<DateTime>> _completions = {};
   final Map<int, Map<DateTime, Completion>> _completionDetails = {};
+  String? _selectedPath;
 
   bool _loaded = false;
   bool get isLoaded => _loaded;
+  String? get selectedPath => _selectedPath;
+  bool get hasSelectedPath =>
+      _selectedPath != null && _selectedPath!.isNotEmpty;
 
   List<Habit> get habits => List.unmodifiable(_habits);
 
   // -- Loading --
 
   Future<void> load() async {
+    _selectedPath = await _db.getSetting('selected_path');
     _habits = await _db.getActiveHabits();
     _completions.clear();
     _completionDetails.clear();
@@ -32,6 +37,12 @@ class HabitProvider extends ChangeNotifier {
       };
     }
     _loaded = true;
+    notifyListeners();
+  }
+
+  Future<void> setSelectedPath(String pathName) async {
+    _selectedPath = pathName;
+    await _db.setSetting('selected_path', pathName);
     notifyListeners();
   }
 
@@ -131,7 +142,8 @@ class HabitProvider extends ChangeNotifier {
       note: details[today]?.note ?? '',
     );
     details[today] = completion;
-    await _db.addCompletion(habitId, today, amount: newAmount, note: completion.note);
+    await _db.addCompletion(habitId, today,
+        amount: newAmount, note: completion.note);
     notifyListeners();
   }
 
@@ -154,7 +166,8 @@ class HabitProvider extends ChangeNotifier {
         note: details[today]?.note ?? '',
       );
       details[today] = completion;
-      await _db.addCompletion(habitId, today, amount: amount, note: completion.note);
+      await _db.addCompletion(habitId, today,
+          amount: amount, note: completion.note);
     }
     notifyListeners();
   }
@@ -176,7 +189,8 @@ class HabitProvider extends ChangeNotifier {
         note: note,
       );
       details[today] = updated;
-      await _db.addCompletion(habitId, today, amount: updated.amount, note: note);
+      await _db.addCompletion(habitId, today,
+          amount: updated.amount, note: note);
     } else {
       // Create new completion with note
       set.add(today);
@@ -195,16 +209,15 @@ class HabitProvider extends ChangeNotifier {
   // v2: Get all notes for a habit (for diary view)
   List<Completion> getNotesForHabit(int habitId) {
     final details = _completionDetails[habitId] ?? {};
-    return details.values
-        .where((c) => c.note.isNotEmpty)
-        .toList()
+    return details.values.where((c) => c.note.isNotEmpty).toList()
       ..sort((a, b) => b.date.compareTo(a.date));
   }
 
   // -- Streaks --
 
   int currentStreak(int habitId) {
-    final habit = _habits.firstWhere((h) => h.id == habitId, orElse: () => _habits.first);
+    final habit =
+        _habits.firstWhere((h) => h.id == habitId, orElse: () => _habits.first);
 
     if (habit.isQuitHabit) {
       return _quitStreak(habitId);
@@ -284,7 +297,9 @@ class HabitProvider extends ChangeNotifier {
   int get completedTodayCount {
     return _habits.where((h) {
       if (h.id == null) return false;
-      if (h.isQuitHabit) return !isCompletedToday(h.id!); // Quit: NOT logging is good
+      if (h.isQuitHabit) {
+        return !isCompletedToday(h.id!); // Quit: NOT logging is good
+      }
       if (h.isAmountTracking) return todayAmount(h.id!) >= h.targetAmount;
       return isCompletedToday(h.id!);
     }).length;
@@ -294,16 +309,38 @@ class HabitProvider extends ChangeNotifier {
 
   String exportAsCsv() {
     final buf = StringBuffer()
-      ..writeln('Habit,Type,Tracking,Streak,Total Completions,Created');
+      ..writeln(
+        'Habit,Path,Anchor,Fallback,Celebration,Type,Tracking,Streak,Total Completions,Created',
+      );
     for (final h in _habits) {
       if (h.id == null) continue;
       final streak = currentStreak(h.id!);
       final total = completionsFor(h.id!).length;
       final created = h.createdAt.toIso8601String().split('T').first;
-      final safeName = h.name.contains(',') ? '"${h.name}"' : h.name;
-      buf.writeln('$safeName,${h.habitType},${h.trackingType},$streak,$total,$created');
+      buf.writeln(
+        [
+          h.name,
+          h.pathName,
+          h.anchor,
+          h.fallbackBehavior,
+          h.celebration,
+          h.habitType,
+          h.trackingType,
+          '$streak',
+          '$total',
+          created,
+        ].map(_csvCell).join(','),
+      );
     }
     return buf.toString();
+  }
+
+  String _csvCell(String value) {
+    final escaped = value.replaceAll('"', '""');
+    if (escaped.contains(',') || escaped.contains('"')) {
+      return '"$escaped"';
+    }
+    return escaped;
   }
 
   DateTime _dayKey(DateTime d) => DateTime(d.year, d.month, d.day);

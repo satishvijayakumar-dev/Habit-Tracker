@@ -22,6 +22,14 @@ class Habit {
   final int targetAmount; // e.g., 8 glasses, 30 minutes
   final String unit; // e.g., "glasses", "minutes", "pages", "km"
 
+  // v3: ActivHealth behavior loop
+  // A complete loop is: After I... -> I will... -> if life gets in the way... -> I celebrate by...
+  final String anchor;
+  final String fallbackBehavior;
+  final String celebration;
+  final String pathName;
+  final String difficulty; // "tiny", "manageable", "challenging"
+
   const Habit({
     this.id,
     required this.name,
@@ -36,6 +44,11 @@ class Habit {
     this.trackingType = 'checkoff',
     this.targetAmount = 1,
     this.unit = '',
+    this.anchor = '',
+    this.fallbackBehavior = '',
+    this.celebration = '',
+    this.pathName = '',
+    this.difficulty = 'tiny',
   });
 
   bool get hasReminder => reminderHour != null && reminderMinute != null;
@@ -57,6 +70,11 @@ class Habit {
     String? trackingType,
     int? targetAmount,
     String? unit,
+    String? anchor,
+    String? fallbackBehavior,
+    String? celebration,
+    String? pathName,
+    String? difficulty,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -67,11 +85,17 @@ class Habit {
       createdAt: createdAt ?? this.createdAt,
       isArchived: isArchived ?? this.isArchived,
       reminderHour: clearReminder ? null : (reminderHour ?? this.reminderHour),
-      reminderMinute: clearReminder ? null : (reminderMinute ?? this.reminderMinute),
+      reminderMinute:
+          clearReminder ? null : (reminderMinute ?? this.reminderMinute),
       habitType: habitType ?? this.habitType,
       trackingType: trackingType ?? this.trackingType,
       targetAmount: targetAmount ?? this.targetAmount,
       unit: unit ?? this.unit,
+      anchor: anchor ?? this.anchor,
+      fallbackBehavior: fallbackBehavior ?? this.fallbackBehavior,
+      celebration: celebration ?? this.celebration,
+      pathName: pathName ?? this.pathName,
+      difficulty: difficulty ?? this.difficulty,
     );
   }
 
@@ -90,6 +114,11 @@ class Habit {
       'tracking_type': trackingType,
       'target_amount': targetAmount,
       'unit': unit,
+      'anchor': anchor,
+      'fallback_behavior': fallbackBehavior,
+      'celebration': celebration,
+      'path_name': pathName,
+      'difficulty': difficulty,
     };
   }
 
@@ -108,6 +137,11 @@ class Habit {
       trackingType: (map['tracking_type'] as String?) ?? 'checkoff',
       targetAmount: (map['target_amount'] as int?) ?? 1,
       unit: (map['unit'] as String?) ?? '',
+      anchor: (map['anchor'] as String?) ?? '',
+      fallbackBehavior: (map['fallback_behavior'] as String?) ?? '',
+      celebration: (map['celebration'] as String?) ?? '',
+      pathName: (map['path_name'] as String?) ?? '',
+      difficulty: (map['difficulty'] as String?) ?? 'tiny',
     );
   }
 }
@@ -117,7 +151,8 @@ class Completion {
   final int? id;
   final int habitId;
   final DateTime date;
-  final int amount; // v2: tracked amount (1 for checkoff, variable for amount tracking)
+  final int
+      amount; // v2: tracked amount (1 for checkoff, variable for amount tracking)
   final String note; // v2: diary note for this completion
 
   const Completion({
