@@ -51,6 +51,8 @@ class CoachScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+                _ReadinessCard(provider: provider),
+                const SizedBox(height: 12),
                 _ReflectionCard(provider: provider, habits: habits),
               ],
             ),
@@ -291,6 +293,60 @@ class _CoachPlanCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ReadinessCard extends StatelessWidget {
+  final HabitProvider provider;
+
+  const _ReadinessCard({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final minutes = provider.activeMinutesThisWeek;
+    final latest = provider.latestActivity;
+    final message = _message(minutes, latest?.intensity);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.health_and_safety_outlined, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Readiness check',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(message, style: const TextStyle(height: 1.35)),
+            const SizedBox(height: 8),
+            Text(
+              'If you feel chest pain, dizziness, unusual shortness of breath, or sharp pain, stop and seek medical advice.',
+              style: TextStyle(color: Colors.grey.shade700, height: 1.35),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _message(int minutes, String? intensity) {
+    if (minutes == 0) {
+      return 'Choose an easy first session today. A short walk or mobility routine is enough to calibrate your plan.';
+    }
+    if (intensity == 'Hard') {
+      return 'Your latest session was hard. Balance it with recovery, hydration, sleep, or gentle movement.';
+    }
+    if (minutes >= 150) {
+      return 'You have a strong active week already. Maintain the rhythm without forcing extra intensity.';
+    }
+    return 'You are building consistency. Add one manageable session before the week ends.';
   }
 }
 

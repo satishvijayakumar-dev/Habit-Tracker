@@ -2,6 +2,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/activity.dart';
 import '../models/habit.dart';
 
 class DatabaseService {
@@ -21,7 +22,7 @@ class DatabaseService {
     final path = p.join(dir.path, 'habit_tracker.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE habits (
@@ -65,6 +66,7 @@ class DatabaseService {
             value TEXT NOT NULL
           )
         ''');
+        await _createActivityTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -111,8 +113,36 @@ class DatabaseService {
             )
           ''');
         }
+        if (oldVersion < 4) {
+          await _createActivityTables(db);
+        }
       },
     );
+  }
+
+  Future<void> _createActivityTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS activities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        duration_minutes INTEGER NOT NULL,
+        intensity TEXT NOT NULL DEFAULT 'Moderate',
+        notes TEXT NOT NULL DEFAULT '',
+        completed_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        activity_type TEXT NOT NULL,
+        area TEXT NOT NULL,
+        privacy TEXT NOT NULL DEFAULT 'public',
+        skill_level TEXT NOT NULL DEFAULT 'All',
+        joined INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   // -- Habits --
@@ -236,6 +266,50 @@ class DatabaseService {
       'settings',
       {'key': key, 'value': value},
       conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // -- Activities --
+
+  Future<List<ActivityLog>> getActivities() async {
+    final db = await database;
+    final rows = await db.query('activities', orderBy: 'completed_at DESC');
+    return rows.map(ActivityLog.fromMap).toList();
+  }
+
+  Future<int> insertActivity(ActivityLog activity) async {
+    final db = await database;
+    final map = activity.toMap()..remove('id');
+    return db.insert('activities', map);
+  }
+
+  Future<void> deleteActivity(int activityId) async {
+    final db = await database;
+    await db.delete('activities', where: 'id = ?', whereArgs: [activityId]);
+  }
+
+  // -- Local groups --
+
+  Future<List<LocalGroup>> getLocalGroups() async {
+    final db = await database;
+    final rows = await db.query('local_groups', orderBy: 'created_at DESC');
+    return rows.map(LocalGroup.fromMap).toList();
+  }
+
+  Future<int> insertLocalGroup(LocalGroup group) async {
+    final db = await database;
+    final map = group.toMap()..remove('id');
+    return db.insert('local_groups', map);
+  }
+
+  Future<void> updateLocalGroup(LocalGroup group) async {
+    if (group.id == null) return;
+    final db = await database;
+    await db.update(
+      'local_groups',
+      group.toMap(),
+      where: 'id = ?',
+      whereArgs: [group.id],
     );
   }
 }

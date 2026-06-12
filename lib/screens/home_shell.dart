@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'all_habits_screen.dart';
+import 'activity_log_screen.dart';
 import 'coach_screen.dart';
+import 'dashboard_screen.dart';
+import 'groups_screen.dart';
 import 'path_onboarding_screen.dart';
 import 'stats_screen.dart';
-import 'today_screen.dart';
 import '../services/habit_provider.dart';
 
 class HomeShell extends StatefulWidget {
@@ -20,9 +21,10 @@ class _HomeShellState extends State<HomeShell> {
 
   // Use IndexedStack so each tab keeps its scroll position.
   final _pages = const [
-    TodayScreen(),
+    DashboardScreen(),
     CoachScreen(),
-    AllHabitsScreen(),
+    ActivityLogScreen(),
+    GroupsScreen(),
     StatsScreen(),
   ];
 
@@ -40,9 +42,9 @@ class _HomeShellState extends State<HomeShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today),
-            label: 'Today',
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
           ),
           NavigationDestination(
             icon: Icon(Icons.psychology_alt_outlined),
@@ -50,14 +52,19 @@ class _HomeShellState extends State<HomeShell> {
             label: 'Coach',
           ),
           NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
-            label: 'Loops',
+            icon: Icon(Icons.directions_run_outlined),
+            selectedIcon: Icon(Icons.directions_run),
+            label: 'Activity',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.groups_outlined),
+            selectedIcon: Icon(Icons.groups),
+            label: 'Groups',
           ),
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),
             selectedIcon: Icon(Icons.bar_chart),
-            label: 'Stats',
+            label: 'Report',
           ),
         ],
       ),

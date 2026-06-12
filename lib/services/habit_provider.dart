@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/activity.dart';
 import '../models/habit.dart';
 import 'database_service.dart';
 import 'notification_service.dart';
@@ -9,6 +10,8 @@ class HabitProvider extends ChangeNotifier {
   final NotificationService _notif = NotificationService.instance;
 
   List<Habit> _habits = [];
+  List<ActivityLog> _activities = [];
+  List<LocalGroup> _localGroups = [];
   final Map<int, Set<DateTime>> _completions = {};
   final Map<int, Map<DateTime, Completion>> _completionDetails = {};
   String? _selectedPath;
@@ -20,12 +23,20 @@ class HabitProvider extends ChangeNotifier {
       _selectedPath != null && _selectedPath!.isNotEmpty;
 
   List<Habit> get habits => List.unmodifiable(_habits);
+  List<ActivityLog> get activities => List.unmodifiable(_activities);
+  List<LocalGroup> get localGroups => List.unmodifiable(_localGroups);
 
   // -- Loading --
 
   Future<void> load() async {
     _selectedPath = await _db.getSetting('selected_path');
     _habits = await _db.getActiveHabits();
+    _activities = await _db.getActivities();
+    _localGroups = await _db.getLocalGroups();
+    if (_localGroups.isEmpty) {
+      await _seedDefaultGroups();
+      _localGroups = await _db.getLocalGroups();
+    }
     _completions.clear();
     _completionDetails.clear();
     for (final h in _habits) {
@@ -38,6 +49,111 @@ class HabitProvider extends ChangeNotifier {
     }
     _loaded = true;
     notifyListeners();
+  }
+
+  // -- Activities --
+
+  Future<void> addActivity(ActivityLog activity) async {
+    final id = await _db.insertActivity(activity);
+    _activities.insert(
+      0,
+      ActivityLog(
+        id: id,
+        type: activity.type,
+        durationMinutes: activity.durationMinutes,
+        intensity: activity.intensity,
+        notes: activity.notes,
+        completedAt: activity.completedAt,
+      ),
+    );
+    notifyListeners();
+  }
+
+  Future<void> deleteActivity(int activityId) async {
+    await _db.deleteActivity(activityId);
+    _activities.removeWhere((activity) => activity.id == activityId);
+    notifyListeners();
+  }
+
+  ActivityLog? get latestActivity {
+    if (_activities.isEmpty) return null;
+    return _activities.first;
+  }
+
+  List<ActivityLog> get activitiesThisWeek {
+    final today = _dayKey(DateTime.now());
+    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+    return _activities
+        .where((activity) => !activity.dayKey.isBefore(weekStart))
+        .toList();
+  }
+
+  int get activeMinutesThisWeek {
+    return activitiesThisWeek.fold<int>(
+      0,
+      (total, activity) => total + activity.durationMinutes,
+    );
+  }
+
+  int get activitySessionsThisWeek => activitiesThisWeek.length;
+
+  Map<String, int> get weeklyMinutesByType {
+    final breakdown = <String, int>{};
+    for (final activity in activitiesThisWeek) {
+      breakdown[activity.type] =
+          (breakdown[activity.type] ?? 0) + activity.durationMinutes;
+    }
+    return breakdown;
+  }
+
+  // -- Local groups --
+
+  Future<void> addLocalGroup(LocalGroup group) async {
+    final id = await _db.insertLocalGroup(group);
+    _localGroups.insert(0, group.copyWith(id: id));
+    notifyListeners();
+  }
+
+  Future<void> toggleJoinGroup(LocalGroup group) async {
+    if (group.id == null) return;
+    final updated = group.copyWith(joined: !group.joined);
+    await _db.updateLocalGroup(updated);
+    final index = _localGroups.indexWhere((item) => item.id == group.id);
+    if (index != -1) {
+      _localGroups[index] = updated;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _seedDefaultGroups() async {
+    final now = DateTime.now();
+    final defaults = [
+      LocalGroup(
+        name: 'Beginner Walk & Talk',
+        activityType: 'Walking',
+        area: 'Approx. local area',
+        skillLevel: 'Beginner',
+        createdAt: now,
+      ),
+      LocalGroup(
+        name: 'After Work Badminton',
+        activityType: 'Badminton',
+        area: 'Nearby sports centre',
+        skillLevel: 'All',
+        createdAt: now,
+      ),
+      LocalGroup(
+        name: 'Gym Confidence Circle',
+        activityType: 'Gym',
+        area: 'Local gym zone',
+        privacy: 'private',
+        skillLevel: 'Beginner',
+        createdAt: now,
+      ),
+    ];
+    for (final group in defaults) {
+      await _db.insertLocalGroup(group);
+    }
   }
 
   Future<void> setSelectedPath(String pathName) async {

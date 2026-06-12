@@ -12,6 +12,9 @@ class StatsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<HabitProvider>();
     final habits = provider.habits;
+    final weeklyBreakdown = provider.weeklyMinutesByType;
+    final activeMinutes = provider.activeMinutesThisWeek;
+    final sessions = provider.activitySessionsThisWeek;
 
     final totalStreak = habits.fold<int>(
       0,
@@ -25,11 +28,11 @@ class StatsScreen extends StatelessWidget {
       });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Stats')),
-      body: habits.isEmpty
+      appBar: AppBar(title: const Text('Weekly report')),
+      body: habits.isEmpty && provider.activities.isEmpty
           ? Center(
               child: Text(
-                'Create loops to see stats.',
+                'Log activity or create loops to see your report.',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             )
@@ -40,33 +43,81 @@ class StatsScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _SummaryCard(
-                        label: 'Active loops',
-                        value: '${habits.length}',
+                        label: 'Active minutes',
+                        value: '$activeMinutes',
                         color: Colors.blue,
-                        icon: Icons.list_alt,
+                        icon: Icons.directions_run,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _SummaryCard(
-                        label: 'Total streak',
-                        value: '$totalStreak',
+                        label: 'Sessions',
+                        value: '$sessions',
                         color: Colors.orange,
-                        icon: Icons.local_fire_department,
+                        icon: Icons.event_available,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                _SummaryCard(
-                  label: 'Average streak',
-                  value: avgStreak.toStringAsFixed(1),
-                  color: Colors.green,
-                  icon: Icons.trending_up,
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryCard(
+                        label: 'Loops protected',
+                        value:
+                            '${provider.completedTodayCount}/${habits.length}',
+                        color: Colors.green,
+                        icon: Icons.repeat,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCard(
+                        label: 'Avg streak',
+                        value: avgStreak.toStringAsFixed(1),
+                        color: Colors.purple,
+                        icon: Icons.trending_up,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Breakdown',
+                  'Movement breakdown',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (weeklyBreakdown.isEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        'No movement logged this week yet.',
+                        style: TextStyle(color: Colors.grey.shade700),
+                      ),
+                    ),
+                  )
+                else
+                  ...weeklyBreakdown.entries.map(
+                    (entry) => Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.timeline),
+                        title: Text(entry.key),
+                        trailing: Text(
+                          '${entry.value} min',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Behavior loops',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
