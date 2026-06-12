@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/activity.dart';
 import '../services/habit_provider.dart';
+import '../theme/app_theme.dart';
 
 class ActivityLogScreen extends StatefulWidget {
   const ActivityLogScreen({super.key});
@@ -32,19 +34,20 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
     final activities = provider.activities;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Activity')),
+      appBar: AppBar(title: const Text('Log activity')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        padding:
+            const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s32),
         children: [
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Ah.s16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Log movement',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 14),
                   Wrap(
@@ -62,7 +65,10 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                         ChoiceChip(
                           label: Text(type),
                           selected: _type == type,
-                          onSelected: (_) => setState(() => _type = type),
+                          onSelected: (_) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _type = type);
+                          },
                         ),
                     ],
                   ),
@@ -73,14 +79,13 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                       textCapitalization: TextCapitalization.words,
                       decoration: const InputDecoration(
                         labelText: 'Activity name',
-                        border: OutlineInputBorder(),
                       ),
                     ),
                   ],
                   const SizedBox(height: 16),
                   Text(
                     '${_minutes.round()} minutes',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                   Slider(
                     value: _minutes,
@@ -122,7 +127,6 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Quick note',
                       hintText: 'Energy, mood, pain, or what made it easy',
-                      border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -130,18 +134,15 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                     onPressed: () => _save(context),
                     icon: const Icon(Icons.check_circle_outline),
                     label: const Text('Save activity'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                    ),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Recent activity',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           if (activities.isEmpty)
@@ -149,8 +150,10 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Log your first session to unlock weekly reports.',
-                  style: TextStyle(color: Colors.grey.shade700),
+                  'Log your first session to unlock weekly insights.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Ah.textSecondary,
+                      ),
                 ),
               ),
             )
@@ -205,9 +208,18 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
 
     _notesController.clear();
     _customTypeController.clear();
+    HapticFeedback.mediumImpact();
     if (mounted) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Activity saved')),
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Ah.mint, size: 20),
+              SizedBox(width: Ah.s8),
+              Expanded(child: Text('Activity saved — ring updated')),
+            ],
+          ),
+        ),
       );
     }
   }

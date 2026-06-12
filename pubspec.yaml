@@ -1,7 +1,7 @@
 name: habit_tracker
 description: ActivHealth designs tiny behavior loops for health, focus, calm, recovery, and mindful routines.
 publish_to: 'none'
-version: 1.5.0+15
+version: 2.0.0+16
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -30,8 +30,8 @@ dependencies:
   # Device biometric authentication
   local_auth: ^2.3.0
 
-  
-  
+  # Typography (Sora display / Inter body — Midnight Coach design system)
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:

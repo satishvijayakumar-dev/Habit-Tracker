@@ -3,9 +3,16 @@ import 'package:local_auth/local_auth.dart';
 import 'package:provider/provider.dart';
 
 import '../services/habit_provider.dart';
+import '../theme/app_theme.dart';
 import 'home_shell.dart';
-import 'profile_screen.dart';
 
+/// Optional biometric lock for returning users with a health profile.
+///
+/// Safety rules (learned the hard way):
+///  - NEVER hard-lock the app: if biometrics are unavailable, unenrolled,
+///    or fail, the user can always continue.
+///  - Allow device passcode fallback (biometricOnly: false).
+///  - Nothing sensitive is reachable from the locked state.
 class SecurityGate extends StatefulWidget {
   const SecurityGate({super.key});
 
@@ -17,6 +24,7 @@ class _SecurityGateState extends State<SecurityGate> {
   final LocalAuthentication _auth = LocalAuthentication();
   bool _checking = true;
   bool _unlocked = false;
+  bool _authUnavailable = false;
   String? _message;
 
   @override
@@ -45,13 +53,12 @@ class _SecurityGateState extends State<SecurityGate> {
     });
 
     try {
-      final canCheck = await _auth.canCheckBiometrics;
       final supported = await _auth.isDeviceSupported();
-      if (!canCheck || !supported) {
+      if (!supported) {
+        // No biometrics and no passcode on this device — never lock out.
         setState(() {
           _checking = false;
-          _message =
-              'Biometric unlock is not available on this device. You can continue for this beta build.';
+          _unlocked = true;
         });
         return;
       }
@@ -59,7 +66,9 @@ class _SecurityGateState extends State<SecurityGate> {
       final ok = await _auth.authenticate(
         localizedReason: 'Unlock ActivHealth to view your health profile.',
         options: const AuthenticationOptions(
-          biometricOnly: true,
+          // Device passcode is an acceptable fallback when Face ID is
+          // unavailable or not recognised.
+          biometricOnly: false,
           stickyAuth: true,
         ),
       );
@@ -67,24 +76,34 @@ class _SecurityGateState extends State<SecurityGate> {
       setState(() {
         _checking = false;
         _unlocked = ok;
-        _message = ok ? null : 'Face ID was not confirmed.';
+        _message = ok ? null : 'Unlock was not confirmed. Try again.';
       });
     } catch (e) {
+      // Auth plugin failed entirely (no biometrics, no passcode, or a
+      // platform error). Locking the user out of their own data is worse
+      // than skipping the lock — offer a way in.
       setState(() {
         _checking = false;
-        _message = 'Secure unlock could not start. You can retry.';
+        _authUnavailable = true;
+        _message = 'Secure unlock could not start on this device.';
       });
     }
+  }
+
+  void _continueWithoutLock() {
+    setState(() => _unlocked = true);
   }
 
   @override
   Widget build(BuildContext context) {
     if (_unlocked) return const HomeShell();
 
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Ah.s24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -93,42 +112,39 @@ class _SecurityGateState extends State<SecurityGate> {
                 width: 82,
                 height: 82,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x22000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 12),
-                    ),
-                  ],
+                  color: Ah.surface2,
+                  borderRadius: BorderRadius.circular(Ah.rLg),
+                  border: Border.all(color: Ah.hairline),
+                  boxShadow: Ah.accentGlow(opacity: 0.15),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(Ah.rLg),
                   child: Image.asset(
                     'assets/images/activhealth_logo.png',
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => const Icon(
                       Icons.favorite,
-                      color: Color(0xFFE53935),
+                      color: Ah.accent,
                       size: 42,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Unlock your trainer',
-                style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: Ah.s24),
+              Text('Welcome back', style: textTheme.displayMedium),
+              const SizedBox(height: Ah.s8),
               Text(
-                'ActivHealth protects your profile, body metrics, plan, and local community visibility with device biometrics.',
-                style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+                'Your profile, body metrics, and plan are protected with your device lock.',
+                style: textTheme.bodyMedium
+                    ?.copyWith(color: Ah.textSecondary, height: 1.4),
               ),
               if (_message != null) ...[
-                const SizedBox(height: 16),
-                Text(_message!, style: const TextStyle(height: 1.35)),
+                const SizedBox(height: Ah.s16),
+                Text(
+                  _message!,
+                  style:
+                      textTheme.bodyMedium?.copyWith(color: Ah.warning),
+                ),
               ],
               const Spacer(),
               FilledButton.icon(
@@ -139,27 +155,16 @@ class _SecurityGateState extends State<SecurityGate> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.face),
-                label: Text(_checking ? 'Checking...' : 'Use Face ID'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                ),
+                    : const Icon(Icons.lock_open),
+                label: Text(_checking ? 'Checking…' : 'Unlock'),
               ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _checking
-                    ? null
-                    : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const ProfileScreen(),
-                          ),
-                        ),
-                icon: const Icon(Icons.person_outline),
-                label: const Text('Review profile'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
+              if (_authUnavailable) ...[
+                const SizedBox(height: Ah.s8),
+                TextButton(
+                  onPressed: _checking ? null : _continueWithoutLock,
+                  child: const Text('Continue without unlocking'),
                 ),
-              ),
+              ],
             ],
           ),
         ),

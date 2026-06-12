@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'activity_log_screen.dart';
 import 'coach_screen.dart';
-import 'dashboard_screen.dart';
 import 'groups_screen.dart';
 import 'path_onboarding_screen.dart';
-import 'stats_screen.dart';
+import 'today_screen.dart';
+import 'you_screen.dart';
 import '../services/habit_provider.dart';
 
+/// Four tabs, one job each:
+///   Today     — do the day (ring + 1-tap loops + session)
+///   Coach     — check in, get guided
+///   Community — groups & social sport
+///   You       — progress, body, profile, settings
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -19,13 +23,12 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  // Use IndexedStack so each tab keeps its scroll position.
+  // IndexedStack keeps each tab's scroll position.
   final _pages = const [
-    DashboardScreen(),
+    TodayScreen(),
     CoachScreen(),
-    ActivityLogScreen(),
     GroupsScreen(),
-    StatsScreen(),
+    YouScreen(),
   ];
 
   @override
@@ -42,9 +45,9 @@ class _HomeShellState extends State<HomeShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: Icon(Icons.donut_large_outlined),
+            selectedIcon: Icon(Icons.donut_large),
+            label: 'Today',
           ),
           NavigationDestination(
             icon: Icon(Icons.psychology_alt_outlined),
@@ -52,19 +55,14 @@ class _HomeShellState extends State<HomeShell> {
             label: 'Coach',
           ),
           NavigationDestination(
-            icon: Icon(Icons.directions_run_outlined),
-            selectedIcon: Icon(Icons.directions_run),
-            label: 'Activity',
-          ),
-          NavigationDestination(
             icon: Icon(Icons.groups_outlined),
             selectedIcon: Icon(Icons.groups),
-            label: 'Groups',
+            label: 'Community',
           ),
           NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Report',
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'You',
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../services/habit_provider.dart';
+import '../theme/app_theme.dart';
 
 class ShareScreen extends StatelessWidget {
   const ShareScreen({super.key});
@@ -11,83 +12,77 @@ class ShareScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<HabitProvider>();
     final profile = provider.profile;
+    final textTheme = Theme.of(context).textTheme;
     final message =
-        'Join me on ActivHealth. My plan: ${provider.selectedPath ?? "AI fitness trainer"} in ${profile?.areaName ?? "my City/Town"}.';
+        'Join me on ActivHealth. My plan: ${provider.selectedPath ?? "coached fitness"} in ${profile?.areaName ?? "my City/Town"}.';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Share ActivHealth')),
+      appBar: AppBar(title: const Text('Invite friends')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        padding:
+            const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s32),
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(Ah.gutter),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFE53935), Color(0xFF7C3AED)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(26),
+              gradient: Ah.brandGradient,
+              borderRadius: BorderRadius.circular(Ah.rXl),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.favorite, color: Colors.white, size: 42),
-                SizedBox(height: 18),
+                const Icon(Icons.favorite, color: Ah.onAccent, size: 36),
+                const SizedBox(height: Ah.s16),
                 Text(
-                  'Train with people you trust',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  'Train with people\nyou trust',
+                  style:
+                      textTheme.headlineLarge?.copyWith(color: Ah.onAccent),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: Ah.s8),
                 Text(
-                  'Share your plan, invite friends, or collaborate with your local group.',
-                  style: TextStyle(color: Colors.white70, height: 1.35),
+                  'Share your plan, invite friends, or bring your local group along.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: Ah.onAccent.withValues(alpha: 0.8),
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: Ah.s16),
           _ShareOption(
             label: 'WhatsApp',
             detail: 'Copy invite text for a WhatsApp message',
             icon: Icons.chat_bubble_outline,
-            color: const Color(0xFF22C55E),
+            color: Ah.mint,
             message: message,
           ),
           _ShareOption(
             label: 'Instagram',
             detail: 'Copy a short caption for Stories or DMs',
             icon: Icons.camera_alt_outlined,
-            color: const Color(0xFFE11D48),
+            color: Ah.accent,
             message: message,
           ),
           _ShareOption(
             label: 'TikTok',
             detail: 'Copy a workout update caption',
             icon: Icons.music_note_outlined,
-            color: const Color(0xFF111827),
+            color: Ah.info,
             message: message,
           ),
           _ShareOption(
             label: 'Email',
             detail: 'Copy a longer invite for email',
             icon: Icons.mail_outline,
-            color: const Color(0xFF2563EB),
+            color: Ah.warning,
             message: message,
           ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Direct platform posting will be connected when we add the sharing SDK/backend. For this TestFlight build, these buttons prepare safe invite text without pretending to post on your behalf.',
-                style: TextStyle(color: Colors.grey.shade700, height: 1.35),
-              ),
-            ),
+          const SizedBox(height: Ah.s8),
+          Text(
+            'Direct platform posting arrives with the sharing SDK. For this beta, these buttons prepare invite text without pretending to post on your behalf.',
+            style: textTheme.labelSmall?.copyWith(height: 1.4),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -112,23 +107,32 @@ class _ShareOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.12),
-          child: Icon(icon, color: color),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Ah.s8),
+      child: Card(
+        child: ListTile(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Ah.tint(color),
+              borderRadius: BorderRadius.circular(Ah.rSm),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          title: Text(label),
+          subtitle: Text(detail),
+          trailing: const Icon(Icons.copy, size: 18),
+          onTap: () async {
+            HapticFeedback.selectionClick();
+            await Clipboard.setData(ClipboardData(text: message));
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('$label invite copied')),
+              );
+            }
+          },
         ),
-        title: Text(label),
-        subtitle: Text(detail),
-        trailing: const Icon(Icons.copy),
-        onTap: () async {
-          await Clipboard.setData(ClipboardData(text: message));
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$label invite copied')),
-            );
-          }
-        },
       ),
     );
   }

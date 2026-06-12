@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/habit.dart';
 import '../services/habit_provider.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/habit_style.dart';
 
 class AddEditHabitScreen extends StatefulWidget {
@@ -188,7 +189,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
               _habitType == 'build'
                   ? 'Build a positive loop'
                   : 'Break a pattern - track days free',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: Theme.of(context).textTheme.labelMedium,
             ),
             const SizedBox(height: 20),
 
@@ -285,7 +286,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
                 _trackingType == 'checkoff'
                     ? 'Simple done / not done each day'
                     : 'Track a quantity (glasses, minutes, pages...)',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: Theme.of(context).textTheme.labelMedium,
               ),
               const SizedBox(height: 12),
 
@@ -345,7 +346,8 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
                       color: e.value,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: selected ? Colors.black : Colors.transparent,
+                        color:
+                            selected ? Ah.textPrimary : Colors.transparent,
                         width: 3,
                       ),
                     ),
@@ -371,7 +373,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> {
                     decoration: BoxDecoration(
                       color: selected
                           ? colorFor(_color).withValues(alpha: 0.15)
-                          : Colors.grey.shade100,
+                          : Ah.surface2,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: selected ? colorFor(_color) : Colors.transparent,
@@ -425,11 +427,9 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: Colors.grey.shade700,
-      ),
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: Ah.textSecondary,
+          ),
     );
   }
 }
@@ -444,18 +444,18 @@ class _PathBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(14),
+        color: Ah.tint(Ah.accent),
+        borderRadius: BorderRadius.circular(Ah.rMd),
       ),
       child: Row(
         children: [
-          const Icon(Icons.route_outlined),
+          const Icon(Icons.route_outlined, color: Ah.accent),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               '$pathName path: design the smallest loop that still counts.',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              style: const TextStyle(
+                color: Ah.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
             ),

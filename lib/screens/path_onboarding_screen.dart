@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/habit.dart';
 import '../services/habit_provider.dart';
+import '../theme/app_theme.dart';
 
 class PathOnboardingScreen extends StatefulWidget {
   const PathOnboardingScreen({super.key});
@@ -12,6 +14,8 @@ class PathOnboardingScreen extends StatefulWidget {
 }
 
 class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
+  bool _welcomed = false;
+  String _name = '';
   int _step = 0;
   final Map<int, _AnswerOption> _answers = {};
   _Persona? _result;
@@ -196,21 +200,21 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
       name: 'The Gym Builder',
       description: 'Strength plans, form cues, recovery, and progression.',
       icon: Icons.fitness_center,
-      color: Colors.red,
+      color: Ah.accent,
     ),
     'runner': _Persona(
       key: 'runner',
       name: 'The Runner / Walker',
       description: 'Pace, distance, active minutes, and safer progression.',
       icon: Icons.directions_run,
-      color: Colors.blue,
+      color: Ah.info,
     ),
     'social': _Persona(
       key: 'social',
       name: 'The Social Sports User',
       description: 'Group activity, local accountability, and shared sessions.',
       icon: Icons.groups_outlined,
-      color: Colors.purple,
+      color: Color(0xFF9B8AFB),
     ),
     'office': _Persona(
       key: 'office',
@@ -218,7 +222,7 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
       description:
           'Loops for desk energy, work focus, meals, and shutdown rituals.',
       icon: Icons.business_center_outlined,
-      color: Colors.blue,
+      color: Ah.info,
     ),
     'remote': _Persona(
       key: 'remote',
@@ -226,7 +230,7 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
       description:
           'Loops for home-work boundaries, movement, food cues, and screen resets.',
       icon: Icons.home_work_outlined,
-      color: Colors.indigo,
+      color: Color(0xFF9B8AFB),
     ),
     'balanced': _Persona(
       key: 'balanced',
@@ -234,23 +238,25 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
       description:
           'Loops for simple consistency across health, focus, and calm.',
       icon: Icons.balance_outlined,
-      color: Colors.green,
+      color: Ah.mint,
     ),
     'starter': _Persona(
       key: 'starter',
       name: 'The Starter',
       description: 'Beginner-safe actions for confidence and consistency.',
       icon: Icons.flag_outlined,
-      color: Colors.green,
+      color: Ah.mint,
     ),
   };
 
   void _select(_AnswerOption answer) {
+    HapticFeedback.selectionClick();
     setState(() {
       _answers[_step] = answer;
       if (_step < _questions.length - 1) {
         _step++;
       } else {
+        HapticFeedback.mediumImpact();
         _result = _scorePersona();
       }
     });
@@ -273,6 +279,9 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
 
     final persona = _result ?? _personas['balanced']!;
     final provider = context.read<HabitProvider>();
+    if (_name.isNotEmpty) {
+      await provider.setUserName(_name);
+    }
     await provider.setSelectedPath(persona.name);
     if (addStarterLoops) {
       for (final habit in _starterLoops(persona)) {
@@ -288,7 +297,11 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
   Future<void> _selfGuided() async {
     if (_saving) return;
     setState(() => _saving = true);
-    await context.read<HabitProvider>().setSelectedPath('Self-guided');
+    final provider = context.read<HabitProvider>();
+    if (_name.isNotEmpty) {
+      await provider.setUserName(_name);
+    }
+    await provider.setSelectedPath('Self-guided');
     if (mounted) {
       setState(() => _saving = false);
     }
@@ -512,10 +525,23 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_welcomed) {
+      return _WelcomeStep(
+        onContinue: (name) {
+          HapticFeedback.mediumImpact();
+          setState(() {
+            _name = name;
+            _welcomed = true;
+          });
+        },
+      );
+    }
+
     final result = _result;
     if (result != null) {
       return _PersonaResultScreen(
         persona: result,
+        name: _name,
         saving: _saving,
         onUseStarterLoops: () => _finish(addStarterLoops: true),
         onCreateOwn: () => _finish(addStarterLoops: false),
@@ -524,35 +550,42 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
     }
 
     final question = _questions[_step];
+    final textTheme = Theme.of(context).textTheme;
+    final progress = (_step + 1) / _questions.length;
+
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+          padding: const EdgeInsets.fromLTRB(
+              Ah.gutter, Ah.s24, Ah.gutter, Ah.s24),
           children: [
-            Text(
-              'ActivHealth',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
+            // Animated progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(Ah.rSm),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: progress),
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) => LinearProgressIndicator(
+                  value: value,
+                  minHeight: 6,
+                ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: Ah.s24),
             Text(
               'Question ${_step + 1} of ${_questions.length}',
-              style: TextStyle(color: Colors.grey.shade700),
+              style: textTheme.labelMedium,
             ),
-            const SizedBox(height: 8),
-            Text(
-              question.title,
-              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: Ah.s8),
+            Text(question.title, style: textTheme.headlineMedium),
+            const SizedBox(height: Ah.s8),
             Text(
               question.subtitle,
-              style: TextStyle(color: Colors.grey.shade700, height: 1.35),
+              style: textTheme.bodyMedium
+                  ?.copyWith(color: Ah.textSecondary, height: 1.4),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: Ah.s24),
             ...question.answers.map(
               (answer) => _AnswerCard(
                 answer: answer,
@@ -560,12 +593,103 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
                 onTap: () => _select(answer),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: Ah.s8),
             TextButton(
               onPressed: _saving ? null : _selfGuided,
-              child: const Text('Skip and follow my own instructions'),
+              child: Text(
+                'Skip — I\'ll guide myself',
+                style: textTheme.labelMedium,
+              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Beat 0: brand moment + name capture, before any questions.
+class _WelcomeStep extends StatefulWidget {
+  final ValueChanged<String> onContinue;
+
+  const _WelcomeStep({required this.onContinue});
+
+  @override
+  State<_WelcomeStep> createState() => _WelcomeStepState();
+}
+
+class _WelcomeStepState extends State<_WelcomeStep> {
+  final _nameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(Ah.s24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Spacer(),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  gradient: Ah.brandGradient,
+                  borderRadius: BorderRadius.circular(Ah.rLg),
+                  boxShadow: Ah.accentGlow(opacity: 0.25),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(Ah.rLg),
+                  child: Image.asset(
+                    'assets/images/activhealth_logo.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.favorite,
+                      color: Ah.onAccent,
+                      size: 36,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: Ah.s24),
+              Text('ActivHealth', style: textTheme.displayMedium),
+              const SizedBox(height: Ah.s8),
+              Text(
+                'Small loops. Real momentum.',
+                style: textTheme.titleMedium?.copyWith(color: Ah.accent),
+              ),
+              const SizedBox(height: Ah.s16),
+              Text(
+                'A coach-led fitness companion that designs tiny behavior loops around your real life — and celebrates every one you protect.',
+                style: textTheme.bodyMedium
+                    ?.copyWith(color: Ah.textSecondary, height: 1.5),
+              ),
+              const SizedBox(height: Ah.s32),
+              TextField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'What should your coach call you?',
+                  hintText: 'First name',
+                ),
+              ),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: () =>
+                    widget.onContinue(_nameController.text.trim()),
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('Find my path'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -585,52 +709,57 @@ class _AnswerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
+    final textTheme = Theme.of(context).textTheme;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: Ah.s8),
+      decoration: BoxDecoration(
+        color: Ah.surface1,
+        borderRadius: BorderRadius.circular(Ah.rLg),
+        border: Border.all(
+          color: selected ? Ah.accent : Ah.hairline,
+          width: selected ? 1.5 : 1,
+        ),
+        boxShadow: selected ? Ah.accentGlow(opacity: 0.12) : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Ah.rLg),
+          child: Padding(
+            padding: const EdgeInsets.all(Ah.s16),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Ah.tint(Ah.accent),
+                    borderRadius: BorderRadius.circular(Ah.rMd),
+                  ),
+                  child: Icon(answer.icon, color: Ah.accent, size: 22),
                 ),
-                child: Icon(
-                  answer.icon,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      answer.label,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
+                const SizedBox(width: Ah.s12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(answer.label, style: textTheme.titleMedium),
+                      const SizedBox(height: 2),
+                      Text(
+                        answer.description,
+                        style: textTheme.bodySmall?.copyWith(height: 1.35),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      answer.description,
-                      style:
-                          TextStyle(color: Colors.grey.shade700, height: 1.3),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Icon(selected ? Icons.check_circle : Icons.chevron_right),
-            ],
+                Icon(
+                  selected ? Icons.check_circle : Icons.chevron_right,
+                  color: selected ? Ah.accent : Ah.textTertiary,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -640,6 +769,7 @@ class _AnswerCard extends StatelessWidget {
 
 class _PersonaResultScreen extends StatelessWidget {
   final _Persona persona;
+  final String name;
   final bool saving;
   final VoidCallback onUseStarterLoops;
   final VoidCallback onCreateOwn;
@@ -647,6 +777,7 @@ class _PersonaResultScreen extends StatelessWidget {
 
   const _PersonaResultScreen({
     required this.persona,
+    required this.name,
     required this.saving,
     required this.onUseStarterLoops,
     required this.onCreateOwn,
@@ -655,64 +786,100 @@ class _PersonaResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+          padding: const EdgeInsets.fromLTRB(
+              Ah.gutter, Ah.s16, Ah.gutter, Ah.s24),
           children: [
-            IconButton(
+            Align(
               alignment: Alignment.centerLeft,
-              onPressed: saving ? null : onBack,
-              icon: const Icon(Icons.arrow_back),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: persona.color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(22),
+              child: IconButton(
+                onPressed: saving ? null : onBack,
+                icon: const Icon(Icons.arrow_back),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(persona.icon, color: persona.color, size: 42),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'Your ActivHealth persona',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: Ah.s16),
+            // The reveal: persona glyph scales in with a glow.
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: reduceMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 600),
+              curve: Curves.easeOutBack,
+              builder: (context, t, child) => Transform.scale(
+                scale: 0.8 + 0.2 * t,
+                child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(Ah.s24),
+                decoration: BoxDecoration(
+                  color: Ah.surface2,
+                  borderRadius: BorderRadius.circular(Ah.rXl),
+                  border: Border.all(
+                    color: persona.color.withValues(alpha: 0.4),
+                    width: 1.5,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    persona.name,
-                    style: const TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
+                  boxShadow: [
+                    BoxShadow(
+                      color: persona.color.withValues(alpha: 0.2),
+                      blurRadius: 32,
+                      spreadRadius: 2,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    persona.description,
-                    style: TextStyle(color: Colors.grey.shade800, height: 1.35),
-                  ),
-                ],
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: Ah.tint(persona.color),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: persona.color, width: 2),
+                      ),
+                      child:
+                          Icon(persona.icon, color: persona.color, size: 30),
+                    ),
+                    const SizedBox(height: Ah.s16),
+                    Text(
+                      name.isEmpty
+                          ? 'Your path'
+                          : '$name, your path is',
+                      style: textTheme.labelMedium,
+                    ),
+                    const SizedBox(height: Ah.s4),
+                    Text(persona.name, style: textTheme.headlineLarge),
+                    const SizedBox(height: Ah.s8),
+                    Text(
+                      persona.description,
+                      style: textTheme.bodyMedium?.copyWith(
+                          color: Ah.textSecondary, height: 1.4),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'ActivHealth can start with three suggested loops, or you can ignore the suggestions and create your own.',
-              style: TextStyle(height: 1.35),
+            const SizedBox(height: Ah.s24),
+            Text(
+              'Your coach can start you with three suggested loops, or you can build your own from scratch.',
+              style: textTheme.bodyMedium?.copyWith(height: 1.4),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Ah.s24),
             FilledButton.icon(
               onPressed: saving ? null : onUseStarterLoops,
-              icon: const Icon(Icons.auto_awesome_outlined),
-              label: Text(saving ? 'Setting up...' : 'Use suggested loops'),
+              icon: const Icon(Icons.route),
+              label: Text(saving ? 'Setting up…' : 'Start my first loops'),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: Ah.s8),
             OutlinedButton.icon(
               onPressed: saving ? null : onCreateOwn,
               icon: const Icon(Icons.edit_outlined),
-              label: const Text('I will create my own loops'),
+              label: const Text('I\'ll create my own'),
             ),
           ],
         ),

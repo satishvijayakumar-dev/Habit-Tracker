@@ -12,6 +12,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final _nameController = TextEditingController();
   final _ageController = TextEditingController();
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
@@ -24,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _ageController.dispose();
     _heightController.dispose();
     _weightController.dispose();
@@ -35,7 +37,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_loaded) return;
-    final profile = context.read<HabitProvider>().profile;
+    final providerRead = context.read<HabitProvider>();
+    _nameController.text = providerRead.userName;
+    final profile = providerRead.profile;
     if (profile != null) {
       _ageController.text = '${profile.age}';
       _heightController.text = profile.heightCm.toStringAsFixed(0);
@@ -70,11 +74,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           const SizedBox(height: 8),
           TextField(
+            controller: _nameController,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              hintText: 'What your coach calls you',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
             controller: _ageController,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
               labelText: 'Age',
-              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
@@ -217,6 +229,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final provider = context.read<HabitProvider>();
     final messenger = ScaffoldMessenger.of(context);
+    await provider.setUserName(_nameController.text);
     await provider.saveProfile(
       UserProfile(
         age: age,

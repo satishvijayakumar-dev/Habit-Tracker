@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// Maps stable string keys (stored in the DB) to Flutter Color/IconData
 /// objects. Keeping the DB string-based means we don't break when icon
 /// codepoints change between Flutter versions.
+///
+/// The palette is the curated Midnight Coach accent set — desaturated,
+/// dark-surface-safe hues that sit well next to the brand coral.
 
 const Map<String, Color> kHabitColors = {
-  'blue': Colors.blue,
-  'red': Colors.red,
-  'green': Colors.green,
-  'orange': Colors.orange,
-  'purple': Colors.purple,
-  'pink': Colors.pink,
-  'teal': Colors.teal,
+  'blue': Color(0xFF5BC0EB), // sky
+  'red': Ah.accent, // coral
+  'green': Ah.mint,
+  'orange': Ah.warning, // amber
+  'purple': Color(0xFF9B8AFB), // violet
+  'pink': Color(0xFFF472B6), // rose
+  'teal': Color(0xFF2DD4BF),
 };
 
 const Map<String, IconData> kHabitIcons = {
@@ -37,7 +42,7 @@ const Map<String, IconData> kHabitIcons = {
   'bedtime': Icons.bedtime_outlined,
 };
 
-Color colorFor(String name) => kHabitColors[name] ?? Colors.blue;
+Color colorFor(String name) => kHabitColors[name] ?? const Color(0xFF5BC0EB);
 
 IconData iconFor(String name) =>
     kHabitIcons[name] ?? Icons.check_circle_outline;

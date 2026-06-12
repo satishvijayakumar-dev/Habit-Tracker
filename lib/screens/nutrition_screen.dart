@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/habit_provider.dart';
+import '../theme/app_theme.dart';
 
+/// "Fuel" — a coach topic, not a destination. Simple, honest guidance.
 class NutritionScreen extends StatelessWidget {
   const NutritionScreen({super.key});
 
@@ -12,73 +14,71 @@ class NutritionScreen extends StatelessWidget {
     final weight = provider.profile?.weightKg ?? 75;
     final proteinLow = (weight * 1.4).round();
     final proteinHigh = (weight * 1.8).round();
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nutrition coach')),
+      appBar: AppBar(title: const Text('Fuel')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        padding:
+            const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s32),
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(Ah.gutter),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0E9F6E), Color(0xFF2563EB)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(26),
+              color: Ah.surface2,
+              borderRadius: BorderRadius.circular(Ah.rXl),
+              border: Border.all(color: Ah.mint.withValues(alpha: 0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.restaurant_menu,
-                    color: Colors.white, size: 40),
-                const SizedBox(height: 16),
-                const Text(
-                  'Fuel the plan',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Ah.tint(Ah.mint),
+                    borderRadius: BorderRadius.circular(Ah.rMd),
                   ),
+                  child: const Icon(Icons.restaurant_menu,
+                      color: Ah.mint, size: 26),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: Ah.s16),
+                Text('Fuel the plan', style: textTheme.headlineMedium),
+                const SizedBox(height: Ah.s8),
                 Text(
-                  'Today aim for roughly $proteinLow-$proteinHigh g protein, steady hydration, and one simple meal you can repeat.',
-                  style: const TextStyle(color: Colors.white70, height: 1.35),
+                  'Today aim for roughly $proteinLow–$proteinHigh g protein, steady hydration, and one simple meal you can repeat.',
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: Ah.textSecondary, height: 1.45),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Ah.s16),
           const _NutritionCard(
             title: 'Before training',
             detail:
                 'Water plus an easy carbohydrate if the session is longer or harder.',
             icon: Icons.water_drop_outlined,
-            color: Color(0xFF2563EB),
+            color: Ah.info,
           ),
           const _NutritionCard(
             title: 'After training',
             detail: 'Protein and a normal meal. Recovery beats restriction.',
             icon: Icons.egg_alt_outlined,
-            color: Color(0xFF0E9F6E),
+            color: Ah.mint,
           ),
           const _NutritionCard(
             title: 'Office or remote day',
             detail:
                 'Plan one snack and one water cue before the afternoon slump.',
             icon: Icons.work_outline,
-            color: Color(0xFFF59E0B),
+            color: Ah.warning,
           ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Nutrition guidance is general wellbeing support. For medical, diabetic, pregnancy, eating disorder, or clinical nutrition needs, use professional advice.',
-                style: TextStyle(color: Colors.grey.shade700, height: 1.35),
-              ),
-            ),
+          const SizedBox(height: Ah.s8),
+          Text(
+            'Nutrition guidance is general wellbeing support. For medical, diabetic, pregnancy, eating disorder, or clinical nutrition needs, use professional advice.',
+            style: textTheme.labelSmall?.copyWith(height: 1.4),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -101,14 +101,22 @@ class _NutritionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.12),
-          child: Icon(icon, color: color),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Ah.s8),
+      child: Card(
+        child: ListTile(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Ah.tint(color),
+              borderRadius: BorderRadius.circular(Ah.rSm),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          title: Text(title),
+          subtitle: Text(detail),
         ),
-        title: Text(title),
-        subtitle: Text(detail),
       ),
     );
   }

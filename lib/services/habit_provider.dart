@@ -5,10 +5,14 @@ import '../models/habit.dart';
 import '../models/user_profile.dart';
 import 'database_service.dart';
 import 'notification_service.dart';
+import 'streak_engine.dart';
 
 class HabitProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService.instance;
   final NotificationService _notif = NotificationService.instance;
+
+  /// Free tier: up to this many active loops. Pro removes the cap.
+  static const int freeLoopLimit = 3;
 
   List<Habit> _habits = [];
   List<ActivityLog> _activities = [];
@@ -18,6 +22,9 @@ class HabitProvider extends ChangeNotifier {
   final Map<int, Map<DateTime, Completion>> _completionDetails = {};
   String? _selectedPath;
   UserProfile? _profile;
+  String _userName = '';
+  bool _isPro = false;
+  Map<String, String> _todayCheckIn = {};
 
   bool _loaded = false;
   bool get isLoaded => _loaded;
@@ -26,6 +33,11 @@ class HabitProvider extends ChangeNotifier {
       _selectedPath != null && _selectedPath!.isNotEmpty;
   UserProfile? get profile => _profile;
   bool get hasProfile => _profile?.isComplete ?? false;
+  String get userName => _userName;
+  bool get isPro => _isPro;
+  bool get canAddLoop => _isPro || _habits.length < freeLoopLimit;
+  Map<String, String> get todayCheckIn => Map.unmodifiable(_todayCheckIn);
+  bool get hasCheckedInToday => _todayCheckIn.isNotEmpty;
 
   List<Habit> get habits => List.unmodifiable(_habits);
   List<ActivityLog> get activities => List.unmodifiable(_activities);
@@ -36,6 +48,11 @@ class HabitProvider extends ChangeNotifier {
 
   Future<void> load() async {
     _selectedPath = await _db.getSetting('selected_path');
+    _userName = await _db.getSetting('user_name') ?? '';
+    _isPro = (await _db.getSetting('pro_active')) == '1';
+    _todayCheckIn = _parseCheckIn(
+      await _db.getSetting('checkin_${_settingDayKey(DateTime.now())}'),
+    );
     _profile = await _db.getUserProfile();
     _bodyMetrics = await _db.getBodyMetrics();
     _habits = await _db.getActiveHabits();
@@ -301,6 +318,63 @@ class HabitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setUserName(String name) async {
+    _userName = name.trim();
+    await _db.setSetting('user_name', _userName);
+    notifyListeners();
+  }
+
+  Future<void> setPro(bool active) async {
+    _isPro = active;
+    await _db.setSetting('pro_active', active ? '1' : '0');
+    notifyListeners();
+  }
+
+  // -- Daily check-in (persisted per day; powers the coach) --
+
+  String _settingDayKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Map<String, String> _parseCheckIn(String? raw) {
+    if (raw == null || raw.isEmpty) return {};
+    final parts = raw.split('|');
+    if (parts.length != 4) return {};
+    return {
+      'energy': parts[0],
+      'soreness': parts[1],
+      'time': parts[2],
+      'mood': parts[3],
+    };
+  }
+
+  Future<void> saveCheckIn({
+    required String energy,
+    required String soreness,
+    required String time,
+    required String mood,
+  }) async {
+    _todayCheckIn = {
+      'energy': energy,
+      'soreness': soreness,
+      'time': time,
+      'mood': mood,
+    };
+    await _db.setSetting(
+      'checkin_${_settingDayKey(DateTime.now())}',
+      '$energy|$soreness|$time|$mood',
+    );
+    notifyListeners();
+  }
+
+  /// Weekly active-minutes target, used by the Momentum Ring.
+  /// Defaults to the WHO/NHS guideline of 150 moderate minutes.
+  int get weeklyMinutesTarget {
+    final level = _profile?.activityLevel.toLowerCase() ?? '';
+    if (level.contains('active')) return 200;
+    if (level.contains('new')) return 90;
+    return 150;
+  }
+
   // -- CRUD --
 
   Future<void> addHabit(Habit habit) async {
@@ -468,78 +542,24 @@ class HabitProvider extends ChangeNotifier {
       ..sort((a, b) => b.date.compareTo(a.date));
   }
 
-  // -- Streaks --
+  // -- Streaks (pure logic lives in StreakEngine; unit-tested) --
 
   int currentStreak(int habitId) {
-    final habit =
-        _habits.firstWhere((h) => h.id == habitId, orElse: () => _habits.first);
-
-    if (habit.isQuitHabit) {
-      return _quitStreak(habitId);
+    Habit? habit;
+    for (final h in _habits) {
+      if (h.id == habitId) {
+        habit = h;
+        break;
+      }
     }
+    // Habit may have just been deleted while a frame is still building.
+    if (habit == null) return 0;
 
-    final days = completionsFor(habitId);
-    if (days.isEmpty) return 0;
-
-    if (habit.isAmountTracking) {
-      return _amountStreak(habitId, habit.targetAmount);
-    }
-
-    return _checkoffStreak(habitId);
-  }
-
-  // Standard checkoff streak
-  int _checkoffStreak(int habitId) {
-    final days = completionsFor(habitId);
-    if (days.isEmpty) return 0;
-
-    var cursor = _dayKey(DateTime.now());
-    if (!days.contains(cursor)) {
-      cursor = cursor.subtract(const Duration(days: 1));
-    }
-
-    var streak = 0;
-    while (days.contains(cursor)) {
-      streak++;
-      cursor = cursor.subtract(const Duration(days: 1));
-    }
-    return streak;
-  }
-
-  // Amount-based streak: only count days where target was met
-  int _amountStreak(int habitId, int target) {
-    final details = _completionDetails[habitId] ?? {};
-    if (details.isEmpty) return 0;
-
-    var cursor = _dayKey(DateTime.now());
-    final todayDetail = details[cursor];
-    if (todayDetail == null || todayDetail.amount < target) {
-      cursor = cursor.subtract(const Duration(days: 1));
-    }
-
-    var streak = 0;
-    while (true) {
-      final detail = details[cursor];
-      if (detail == null || detail.amount < target) break;
-      streak++;
-      cursor = cursor.subtract(const Duration(days: 1));
-    }
-    return streak;
-  }
-
-  // Quit habit streak: days since last occurrence
-  int _quitStreak(int habitId) {
-    final days = completionsFor(habitId);
-    if (days.isEmpty) {
-      // Never logged = count from habit creation date
-      final habit = _habits.firstWhere((h) => h.id == habitId);
-      return DateTime.now().difference(habit.createdAt).inDays;
-    }
-
-    // Find the most recent completion (most recent "slip")
-    final sorted = days.toList()..sort((a, b) => b.compareTo(a));
-    final lastSlip = sorted.first;
-    return DateTime.now().difference(lastSlip).inDays;
+    return StreakEngine.currentStreak(
+      habit: habit,
+      completedDays: completionsFor(habitId),
+      details: _completionDetails[habitId] ?? {},
+    );
   }
 
   Set<DateTime> completionsInMonth(int habitId, DateTime month) {

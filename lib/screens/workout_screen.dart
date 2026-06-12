@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/activity.dart';
 import '../services/habit_provider.dart';
+import '../theme/app_theme.dart';
 
 class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
@@ -24,7 +26,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       reps: '8-12',
       safety: 'Knees track toes, chest tall.',
       cue: 'Controlled down, strong drive up.',
-      color: Color(0xFFE53935),
       icon: Icons.accessibility_new,
     ),
     _Exercise(
@@ -34,7 +35,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       reps: '8-10',
       safety: 'Hinge from hips, neutral spine.',
       cue: 'Push hips back, feel hamstrings load.',
-      color: Color(0xFF7C3AED),
       icon: Icons.fitness_center,
     ),
     _Exercise(
@@ -44,7 +44,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       reps: '8-10',
       safety: 'Brace core, avoid back arch.',
       cue: 'Press up in a smooth vertical path.',
-      color: Color(0xFF2563EB),
       icon: Icons.upload,
     ),
     _Exercise(
@@ -54,7 +53,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       reps: '8-12',
       safety: 'Pull to upper chest, no swinging.',
       cue: 'Lead with elbows, squeeze shoulder blades.',
-      color: Color(0xFF0E9F6E),
       icon: Icons.keyboard_double_arrow_down,
     ),
     _Exercise(
@@ -64,7 +62,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       reps: 'Quality reps',
       safety: 'Straight line from head to heel.',
       cue: 'Slow lower, strong press.',
-      color: Color(0xFFF59E0B),
       icon: Icons.open_in_full,
     ),
     _Exercise(
@@ -74,7 +71,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       reps: '20-45 min',
       safety: 'Keep conversational pace.',
       cue: 'Tall posture, relaxed shoulders.',
-      color: Color(0xFF0891B2),
       icon: Icons.directions_run,
     ),
   ];
@@ -84,35 +80,39 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final provider = context.watch<HabitProvider>();
     final plan = provider.weeklyExercisePlan;
     final missed = provider.missedPlannedSessionsThisWeek;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Today workout')),
+      appBar: AppBar(title: const Text('Session')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        padding:
+            const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s32),
         children: [
           _WorkoutHero(missed: missed, minutes: _minutes.round()),
-          const SizedBox(height: 16),
-          const Text(
-            'AI trainer plan',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          ...plan.take(4).map((item) => Card(
-                  child: ListTile(
-                leading: const Icon(Icons.auto_awesome),
-                title: Text(item),
-              ))),
-          const SizedBox(height: 16),
-          const Text(
-            'Select what you completed',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Ah.s24),
+          Text("This week's plan", style: textTheme.titleLarge),
+          const SizedBox(height: Ah.s8),
+          ...plan.take(4).map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: Ah.s8),
+                  child: Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.event_note_outlined,
+                          color: Ah.info),
+                      title: Text(item),
+                    ),
+                  ),
+                ),
+              ),
+          const SizedBox(height: Ah.s16),
+          Text('Select what you completed', style: textTheme.titleLarge),
+          const SizedBox(height: Ah.s8),
           ..._exercises.map(
             (exercise) => _ExerciseCard(
               exercise: exercise,
               selected: _selected.contains(exercise.name),
               onTap: () {
+                HapticFeedback.selectionClick();
                 setState(() {
                   if (_selected.contains(exercise.name)) {
                     _selected.remove(exercise.name);
@@ -123,17 +123,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               },
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: Ah.s16),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Ah.s16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${_minutes.round()} minutes',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
+                  Text('${_minutes.round()} minutes',
+                      style: textTheme.titleMedium),
                   Slider(
                     value: _minutes,
                     min: 10,
@@ -162,17 +160,16 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     ],
                     selected: {_intensity},
                     onSelectionChanged: (value) {
+                      HapticFeedback.selectionClick();
                       setState(() => _intensity = value.first);
                     },
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: Ah.s16),
                   FilledButton.icon(
-                    onPressed: _selected.isEmpty ? null : () => _log(context),
+                    onPressed:
+                        _selected.isEmpty ? null : () => _log(context),
                     icon: const Icon(Icons.done_all),
-                    label: const Text('Log selected workout'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                    ),
+                    label: const Text('Log session'),
                   ),
                 ],
               ),
@@ -185,21 +182,34 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   Future<void> _log(BuildContext context) async {
     final provider = context.read<HabitProvider>();
+    final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final exercises = _selected.join(', ');
     await provider.addActivity(
       ActivityLog(
-        type: _selected.any((name) => name.contains('Run')) ? 'Running' : 'Gym',
+        type:
+            _selected.any((name) => name.contains('Run')) ? 'Running' : 'Gym',
         durationMinutes: _minutes.round(),
         intensity: _intensity,
         notes: 'Exercises: $exercises',
         completedAt: DateTime.now(),
       ),
     );
+    HapticFeedback.mediumImpact();
     setState(_selected.clear);
-    if (mounted) {
-      messenger.showSnackBar(const SnackBar(content: Text('Workout logged')));
-    }
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Ah.mint, size: 20),
+            SizedBox(width: Ah.s8),
+            Expanded(child: Text('Session logged — ring updated')),
+          ],
+        ),
+      ),
+    );
+    // Back to Today so the ring visibly advances: effort -> progress.
+    if (navigator.canPop()) navigator.pop();
   }
 }
 
@@ -211,11 +221,13 @@ class _WorkoutHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(Ah.gutter),
       decoration: BoxDecoration(
-        color: const Color(0xFF101828),
-        borderRadius: BorderRadius.circular(26),
+        color: Ah.surface2,
+        borderRadius: BorderRadius.circular(Ah.rXl),
+        border: Border.all(color: Ah.hairline),
       ),
       child: Row(
         children: [
@@ -223,43 +235,31 @@ class _WorkoutHero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Motion-guided session',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
+                Text('Guided session', style: textTheme.headlineSmall),
+                const SizedBox(height: Ah.s8),
                 Text(
                   missed == 0
                       ? 'Follow the plan, protect form, log honestly.'
-                      : 'Rebalanced for $missed open session${missed == 1 ? "" : "s"}.',
-                  style: const TextStyle(color: Colors.white70, height: 1.35),
+                      : '$missed open session${missed == 1 ? "" : "s"} left this week — this one counts.',
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: Ah.textSecondary, height: 1.4),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: Ah.s12),
           Container(
-            width: 78,
-            height: 78,
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFE53935), Color(0xFFFFB74D)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
+              gradient: Ah.brandGradient,
+              borderRadius: BorderRadius.circular(Ah.rLg),
             ),
             child: Center(
               child: Text(
                 '$minutes',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                ),
+                style:
+                    textTheme.headlineSmall?.copyWith(color: Ah.onAccent),
               ),
             ),
           ),
@@ -282,65 +282,73 @@ class _ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: selected ? exercise.color.withValues(alpha: 0.1) : null,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 64,
-                height: 86,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      exercise.color.withValues(alpha: 0.95),
-                      exercise.color.withValues(alpha: 0.45),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+    final textTheme = Theme.of(context).textTheme;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: Ah.s8),
+      decoration: BoxDecoration(
+        color: selected
+            ? Color.alphaBlend(Ah.tint(Ah.accent), Ah.surface1)
+            : Ah.surface1,
+        borderRadius: BorderRadius.circular(Ah.rLg),
+        border: Border.all(
+          color: selected ? Ah.accent : Ah.hairline,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Ah.rLg),
+          child: Padding(
+            padding: const EdgeInsets.all(Ah.s12),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: selected ? Ah.tint(Ah.accent) : Ah.surface3,
+                    borderRadius: BorderRadius.circular(Ah.rMd),
                   ),
-                  borderRadius: BorderRadius.circular(20),
+                  child: Icon(
+                    exercise.icon,
+                    color: selected ? Ah.accent : Ah.textSecondary,
+                    size: 26,
+                  ),
                 ),
-                child: Icon(exercise.icon, color: Colors.white, size: 34),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      exercise.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
+                const SizedBox(width: Ah.s12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(exercise.name, style: textTheme.titleMedium),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${exercise.group} · ${exercise.sets} × ${exercise.reps}',
+                        style: textTheme.labelMedium,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                        '${exercise.group} - ${exercise.sets} x ${exercise.reps}'),
-                    const SizedBox(height: 6),
-                    Text(
-                      exercise.cue,
-                      style: TextStyle(color: Colors.grey.shade700),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Safety: ${exercise.safety}',
-                      style: const TextStyle(
-                        color: Color(0xFF0E9F6E),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                      const SizedBox(height: Ah.s4),
+                      Text(
+                        exercise.cue,
+                        style: textTheme.bodySmall,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        exercise.safety,
+                        style: textTheme.labelSmall
+                            ?.copyWith(color: Ah.mint),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Icon(selected ? Icons.check_circle : Icons.add_circle_outline),
-            ],
+                Icon(
+                  selected ? Icons.check_circle : Icons.add_circle_outline,
+                  color: selected ? Ah.accent : Ah.textTertiary,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -355,7 +363,6 @@ class _Exercise {
   final String reps;
   final String safety;
   final String cue;
-  final Color color;
   final IconData icon;
 
   const _Exercise({
@@ -365,7 +372,6 @@ class _Exercise {
     required this.reps,
     required this.safety,
     required this.cue,
-    required this.color,
     required this.icon,
   });
 }
