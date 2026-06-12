@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/activity.dart';
 import '../models/habit.dart';
+import '../models/user_profile.dart';
 
 class DatabaseService {
   DatabaseService._();
@@ -22,7 +23,7 @@ class DatabaseService {
     final path = p.join(dir.path, 'habit_tracker.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE habits (
@@ -67,6 +68,7 @@ class DatabaseService {
           )
         ''');
         await _createActivityTables(db);
+        await _createProfileTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -116,6 +118,9 @@ class DatabaseService {
         if (oldVersion < 4) {
           await _createActivityTables(db);
         }
+        if (oldVersion < 5) {
+          await _createProfileTables(db);
+        }
       },
     );
   }
@@ -141,6 +146,32 @@ class DatabaseService {
         skill_level TEXT NOT NULL DEFAULT 'All',
         joined INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  Future<void> _createProfileTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS user_profile (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        age INTEGER NOT NULL,
+        sex TEXT NOT NULL,
+        height_cm REAL NOT NULL,
+        weight_kg REAL NOT NULL,
+        fitness_goal TEXT NOT NULL,
+        activity_level TEXT NOT NULL,
+        area_name TEXT NOT NULL,
+        share_approx_location INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS body_metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        weight_kg REAL NOT NULL,
+        waist_cm REAL,
+        note TEXT NOT NULL DEFAULT '',
+        recorded_at INTEGER NOT NULL
       )
     ''');
   }
@@ -311,5 +342,38 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [group.id],
     );
+  }
+
+  // -- User profile --
+
+  Future<UserProfile?> getUserProfile() async {
+    final db = await database;
+    final rows = await db.query('user_profile', limit: 1);
+    if (rows.isEmpty) return null;
+    return UserProfile.fromMap(rows.first);
+  }
+
+  Future<void> saveUserProfile(UserProfile profile) async {
+    final db = await database;
+    final map = profile.toMap()
+      ..['id'] = 1
+      ..['updated_at'] = DateTime.now().millisecondsSinceEpoch;
+    await db.insert(
+      'user_profile',
+      map,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<BodyMetric>> getBodyMetrics() async {
+    final db = await database;
+    final rows = await db.query('body_metrics', orderBy: 'recorded_at DESC');
+    return rows.map(BodyMetric.fromMap).toList();
+  }
+
+  Future<int> insertBodyMetric(BodyMetric metric) async {
+    final db = await database;
+    final map = metric.toMap()..remove('id');
+    return db.insert('body_metrics', map);
   }
 }

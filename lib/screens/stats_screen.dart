@@ -15,12 +15,14 @@ class StatsScreen extends StatelessWidget {
     final weeklyBreakdown = provider.weeklyMinutesByType;
     final activeMinutes = provider.activeMinutesThisWeek;
     final sessions = provider.activitySessionsThisWeek;
-
-    final totalStreak = habits.fold<int>(
-      0,
-      (sum, h) => sum + (h.id != null ? provider.currentStreak(h.id!) : 0),
-    );
-    final avgStreak = habits.isEmpty ? 0.0 : totalStreak / habits.length;
+    final profile = provider.profile;
+    final latestMetric =
+        provider.bodyMetrics.isEmpty ? null : provider.bodyMetrics.first;
+    final firstMetric =
+        provider.bodyMetrics.isEmpty ? null : provider.bodyMetrics.last;
+    final weightChange = latestMetric == null || firstMetric == null
+        ? null
+        : latestMetric.weightKg - firstMetric.weightKg;
 
     final sorted = [...habits]..sort((a, b) {
         if (a.id == null || b.id == null) return 0;
@@ -65,23 +67,50 @@ class StatsScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _SummaryCard(
-                        label: 'Loops protected',
-                        value:
-                            '${provider.completedTodayCount}/${habits.length}',
+                        label: 'Calories est.',
+                        value: '${provider.estimatedCaloriesThisWeek}',
                         color: Colors.green,
-                        icon: Icons.repeat,
+                        icon: Icons.local_fire_department_outlined,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _SummaryCard(
-                        label: 'Avg streak',
-                        value: avgStreak.toStringAsFixed(1),
+                        label: 'Star points',
+                        value: '${provider.starPoints}',
                         color: Colors.purple,
-                        icon: Icons.trending_up,
+                        icon: Icons.star,
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 24),
+                if (profile != null) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.monitor_weight_outlined),
+                      title: Text(
+                        'BMI ${profile.bmi.toStringAsFixed(1)} - ${profile.bmiLabel}',
+                      ),
+                      subtitle: Text(
+                        weightChange == null
+                            ? 'Add body check-ins to compare before and after.'
+                            : 'Weight change since start: ${weightChange >= 0 ? "+" : ""}${weightChange.toStringAsFixed(1)} kg',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.assignment_late_outlined),
+                    title: const Text('Planned sessions'),
+                    subtitle: Text(
+                      provider.missedPlannedSessionsThisWeek == 0
+                          ? 'On track this week.'
+                          : '${provider.missedPlannedSessionsThisWeek} session${provider.missedPlannedSessionsThisWeek == 1 ? "" : "s"} missed or still open.',
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 const Text(

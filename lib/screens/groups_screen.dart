@@ -11,6 +11,7 @@ class GroupsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<HabitProvider>();
     final groups = provider.localGroups;
+    final profile = provider.profile;
 
     return Scaffold(
       appBar: AppBar(
@@ -37,16 +38,33 @@ class GroupsScreen extends StatelessWidget {
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Find small activity groups by approximate area, skill level, and privacy. ActivHealth does not need exact location for Phase 2.',
-                      style: TextStyle(height: 1.35),
+                      profile == null
+                          ? 'Complete your profile to unlock local community matching by approximate area.'
+                          : profile.shareApproxLocation
+                              ? 'Visible in ${profile.areaName}. Nearby user search, pings, and invitations are ready for the secure backend phase.'
+                              : 'Your area is saved, but local visibility is off. Turn it on from Profile when you want members nearby to discover you.',
+                      style: const TextStyle(height: 1.35),
                     ),
                   ),
                 ],
               ),
             ),
           ),
+          if (profile?.shareApproxLocation ?? false) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.radar_outlined),
+                title: const Text('Nearby community'),
+                subtitle: Text(
+                  'Approximate area: ${profile!.areaName}. Live member counts and pings require the shared backend.',
+                ),
+                trailing: const Icon(Icons.lock_outline),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           const Text(
             'Suggested nearby groups',

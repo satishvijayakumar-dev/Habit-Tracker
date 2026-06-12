@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/activity.dart';
 import '../models/habit.dart';
+import '../models/user_profile.dart';
 import 'database_service.dart';
 import 'notification_service.dart';
 
@@ -12,24 +13,31 @@ class HabitProvider extends ChangeNotifier {
   List<Habit> _habits = [];
   List<ActivityLog> _activities = [];
   List<LocalGroup> _localGroups = [];
+  List<BodyMetric> _bodyMetrics = [];
   final Map<int, Set<DateTime>> _completions = {};
   final Map<int, Map<DateTime, Completion>> _completionDetails = {};
   String? _selectedPath;
+  UserProfile? _profile;
 
   bool _loaded = false;
   bool get isLoaded => _loaded;
   String? get selectedPath => _selectedPath;
   bool get hasSelectedPath =>
       _selectedPath != null && _selectedPath!.isNotEmpty;
+  UserProfile? get profile => _profile;
+  bool get hasProfile => _profile?.isComplete ?? false;
 
   List<Habit> get habits => List.unmodifiable(_habits);
   List<ActivityLog> get activities => List.unmodifiable(_activities);
   List<LocalGroup> get localGroups => List.unmodifiable(_localGroups);
+  List<BodyMetric> get bodyMetrics => List.unmodifiable(_bodyMetrics);
 
   // -- Loading --
 
   Future<void> load() async {
     _selectedPath = await _db.getSetting('selected_path');
+    _profile = await _db.getUserProfile();
+    _bodyMetrics = await _db.getBodyMetrics();
     _habits = await _db.getActiveHabits();
     _activities = await _db.getActivities();
     _localGroups = await _db.getLocalGroups();
@@ -48,6 +56,53 @@ class HabitProvider extends ChangeNotifier {
       };
     }
     _loaded = true;
+    notifyListeners();
+  }
+
+  Future<void> saveProfile(UserProfile profile) async {
+    final saved = profile.copyWith(id: 1, updatedAt: DateTime.now());
+    await _db.saveUserProfile(saved);
+    _profile = saved;
+    if (_bodyMetrics.isEmpty ||
+        (_bodyMetrics.first.weightKg - saved.weightKg).abs() >= 0.1) {
+      final metric = BodyMetric(
+        weightKg: saved.weightKg,
+        recordedAt: DateTime.now(),
+        note: 'Profile update',
+      );
+      final id = await _db.insertBodyMetric(metric);
+      _bodyMetrics.insert(
+        0,
+        BodyMetric(
+          id: id,
+          weightKg: metric.weightKg,
+          recordedAt: metric.recordedAt,
+          note: metric.note,
+        ),
+      );
+    }
+    notifyListeners();
+  }
+
+  Future<void> addBodyMetric(BodyMetric metric) async {
+    final id = await _db.insertBodyMetric(metric);
+    _bodyMetrics.insert(
+      0,
+      BodyMetric(
+        id: id,
+        weightKg: metric.weightKg,
+        waistCm: metric.waistCm,
+        note: metric.note,
+        recordedAt: metric.recordedAt,
+      ),
+    );
+    if (_profile != null) {
+      _profile = _profile!.copyWith(
+        weightKg: metric.weightKg,
+        updatedAt: DateTime.now(),
+      );
+      await _db.saveUserProfile(_profile!);
+    }
     notifyListeners();
   }
 
@@ -104,6 +159,90 @@ class HabitProvider extends ChangeNotifier {
           (breakdown[activity.type] ?? 0) + activity.durationMinutes;
     }
     return breakdown;
+  }
+
+  int get estimatedCaloriesThisWeek {
+    return activitiesThisWeek.fold<int>(
+      0,
+      (total, activity) => total + _estimateCalories(activity),
+    );
+  }
+
+  int get starPoints {
+    final movementPoints = activeMinutesThisWeek ~/ 10;
+    final sessionPoints = activitySessionsThisWeek * 5;
+    final loopPoints = completedTodayCount * 3;
+    final profilePoints = hasProfile ? 20 : 0;
+    return movementPoints + sessionPoints + loopPoints + profilePoints;
+  }
+
+  int get missedPlannedSessionsThisWeek {
+    final target = _weeklySessionTarget;
+    final completed = activitySessionsThisWeek;
+    return completed >= target ? 0 : target - completed;
+  }
+
+  List<String> get weeklyExercisePlan {
+    final path = (_selectedPath ?? '').toLowerCase();
+    final goal = (_profile?.fitnessGoal ?? '').toLowerCase();
+    if (path.contains('gym') || goal.contains('strength')) {
+      return const [
+        'Day 1: Full body strength - squat, push, row, core',
+        'Day 2: Zone 2 cardio or brisk walk',
+        'Day 3: Upper body - press, pull, shoulder stability',
+        'Day 4: Lower body - hinge, lunge, calf, mobility',
+      ];
+    }
+    if (path.contains('office') || path.contains('remote')) {
+      return const [
+        'Day 1: 25-minute walk plus posture reset',
+        'Day 2: Mobility and core basics',
+        'Day 3: Brisk walk or light jog',
+        'Day 4: Bodyweight strength circuit',
+      ];
+    }
+    return const [
+      'Day 1: Easy walk',
+      'Day 2: Strength basics',
+      'Day 3: Mobility and recovery',
+      'Day 4: Social activity or sport',
+    ];
+  }
+
+  List<String> get exerciseLibrary {
+    return const [
+      'Squat',
+      'Lunge',
+      'Hip hinge',
+      'Push-up',
+      'Chest press',
+      'Shoulder press',
+      'Lat pulldown',
+      'Seated row',
+      'Plank',
+      'Dead bug',
+      'Treadmill walk',
+      'Cycling',
+      'Mobility flow',
+      'Badminton drills',
+    ];
+  }
+
+  int _estimateCalories(ActivityLog activity) {
+    final weight = _profile?.weightKg ?? 75;
+    final met = switch (activity.intensity) {
+      'Hard' => 8.0,
+      'Easy' => 3.5,
+      _ => 5.5,
+    };
+    return ((met * 3.5 * weight / 200) * activity.durationMinutes).round();
+  }
+
+  int get _weeklySessionTarget {
+    final level = _profile?.activityLevel.toLowerCase() ?? '';
+    if (level.contains('active')) return 5;
+    if (level.contains('new')) return 3;
+    return 4;
   }
 
   // -- Local groups --

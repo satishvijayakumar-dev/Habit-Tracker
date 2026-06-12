@@ -5,6 +5,8 @@ import '../services/habit_provider.dart';
 import 'activity_log_screen.dart';
 import 'add_edit_habit_screen.dart';
 import 'all_habits_screen.dart';
+import 'profile_screen.dart';
+import 'workout_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -18,18 +20,35 @@ class DashboardScreen extends StatelessWidget {
     final loopsDone = provider.completedTodayCount;
     final loopsTotal = provider.habits.length;
     final latest = provider.latestActivity;
+    final profile = provider.profile;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ActivHealth')),
+      appBar: AppBar(
+        title: const Text('ActivHealth'),
+        actions: [
+          IconButton(
+            tooltip: 'Profile',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+            icon: const Icon(Icons.person_outline),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
+          if (!provider.hasProfile) ...[
+            _ProfilePrompt(),
+            const SizedBox(height: 16),
+          ],
           _HeroPanel(
             path: path,
             activeMinutes: activeMinutes,
             sessions: sessions,
             loopsDone: loopsDone,
             loopsTotal: loopsTotal,
+            starPoints: provider.starPoints,
           ),
           const SizedBox(height: 16),
           Row(
@@ -46,6 +65,14 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
+              IconButton.filledTonal(
+                tooltip: 'Workout plan',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WorkoutScreen()),
+                ),
+                icon: const Icon(Icons.fitness_center),
+              ),
+              const SizedBox(width: 8),
               IconButton.filledTonal(
                 tooltip: 'Create loop',
                 onPressed: () => Navigator.of(context).push(
@@ -77,8 +104,36 @@ class DashboardScreen extends StatelessWidget {
           _LatestActivityCard(
               latestType: latest?.type, minutes: latest?.durationMinutes),
           const SizedBox(height: 16),
-          _PrivacyCard(),
+          if (profile != null) ...[
+            _BodyCard(
+              bmi: profile.bmi,
+              bmiLabel: profile.bmiLabel,
+              calories: provider.estimatedCaloriesThisWeek,
+              missed: provider.missedPlannedSessionsThisWeek,
+            ),
+            const SizedBox(height: 16),
+          ],
+          _PrivacyCard(area: profile?.areaName),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfilePrompt extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.person_add_alt),
+        title: const Text('Complete your body profile'),
+        subtitle: const Text(
+          'Age, sex, height, weight, goal, and area unlock better plans and reports.',
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+        ),
       ),
     );
   }
@@ -90,6 +145,7 @@ class _HeroPanel extends StatelessWidget {
   final int sessions;
   final int loopsDone;
   final int loopsTotal;
+  final int starPoints;
 
   const _HeroPanel({
     required this.path,
@@ -97,6 +153,7 @@ class _HeroPanel extends StatelessWidget {
     required this.sessions,
     required this.loopsDone,
     required this.loopsTotal,
+    required this.starPoints,
   });
 
   @override
@@ -143,9 +200,9 @@ class _HeroPanel extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _MetricTile(
-                  label: 'Loops',
-                  value: '$loopsDone/$loopsTotal',
-                  icon: Icons.repeat,
+                  label: 'Star pts',
+                  value: '$starPoints',
+                  icon: Icons.star,
                 ),
               ),
             ],
@@ -271,6 +328,10 @@ class _LatestActivityCard extends StatelessWidget {
 }
 
 class _PrivacyCard extends StatelessWidget {
+  final String? area;
+
+  const _PrivacyCard({this.area});
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -284,15 +345,102 @@ class _PrivacyCard extends StatelessWidget {
               color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Groups use approximate areas only. No exact location sharing is needed for this version.',
-                style: TextStyle(height: 1.35),
+                area == null || area!.isEmpty
+                    ? 'Groups use approximate areas only. Complete your profile before community matching.'
+                    : 'Community matching is set to $area. Exact GPS and user-to-user invites need the secure backend phase.',
+                style: const TextStyle(height: 1.35),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _BodyCard extends StatelessWidget {
+  final double bmi;
+  final String bmiLabel;
+  final int calories;
+  final int missed;
+
+  const _BodyCard({
+    required this.bmi,
+    required this.bmiLabel,
+    required this.calories,
+    required this.missed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Body and progress',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniStat(
+                    label: 'BMI',
+                    value: bmi.toStringAsFixed(1),
+                    detail: bmiLabel,
+                  ),
+                ),
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Calories',
+                    value: '$calories',
+                    detail: 'estimated this week',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              missed == 0
+                  ? 'No planned sessions missed this week.'
+                  : '$missed session${missed == 1 ? "" : "s"} still open. Coach will rebalance the week.',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final String detail;
+
+  const _MiniStat({
+    required this.label,
+    required this.value,
+    required this.detail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: Colors.grey.shade600)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+        ),
+        Text(detail, style: const TextStyle(fontSize: 12)),
+      ],
     );
   }
 }
