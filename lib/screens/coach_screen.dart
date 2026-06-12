@@ -1,217 +1,204 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/habit.dart';
 import '../services/habit_provider.dart';
-import '../widgets/habit_style.dart';
-import 'add_edit_habit_screen.dart';
-import 'habit_detail_screen.dart';
+import 'profile_screen.dart';
+import 'workout_screen.dart';
 
-class CoachScreen extends StatelessWidget {
+class CoachScreen extends StatefulWidget {
   const CoachScreen({super.key});
+
+  @override
+  State<CoachScreen> createState() => _CoachScreenState();
+}
+
+class _CoachScreenState extends State<CoachScreen> {
+  String _energy = 'Steady';
+  String _soreness = 'Low';
+  String _time = '30 min';
+  String _mood = 'Focused';
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<HabitProvider>();
-    final habits = provider.habits;
-    final plan = _buildPlan(provider, habits);
-    final pathName = provider.selectedPath ?? 'ActivHealth';
+    final profile = provider.profile;
+    final plan = provider.weeklyExercisePlan;
+    final missed = provider.missedPlannedSessionsThisWeek;
+    final activeMinutes = provider.activeMinutesThisWeek;
+    final coachLine = _coachLine(provider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Coach')),
-      body: habits.isEmpty
-          ? _CoachEmptyState(
-              onAdd: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AddEditHabitScreen()),
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [
-                _PulseHeader(
-                  provider: provider,
-                  habits: habits,
-                  pathName: pathName,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Today plan',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                ...plan.map(
-                  (item) => _CoachPlanCard(
-                    item: item,
-                    onOpen: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            HabitDetailScreen(habitId: item.habit.id!),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _ReadinessCard(provider: provider),
-                const SizedBox(height: 12),
-                _ReflectionCard(provider: provider, habits: habits),
-              ],
+      appBar: AppBar(
+        title: const Text('AI Coach'),
+        actions: [
+          IconButton(
+            tooltip: 'Profile',
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
             ),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        children: [
+          _CoachHero(
+            persona: provider.selectedPath ?? 'ActivHealth',
+            goal: profile?.fitnessGoal ?? 'Build consistency',
+            minutes: activeMinutes,
+            points: provider.starPoints,
+          ),
+          const SizedBox(height: 16),
+          if (profile == null)
+            _CompleteProfileCard()
+          else
+            _DailyCheckIn(
+              energy: _energy,
+              soreness: _soreness,
+              time: _time,
+              mood: _mood,
+              onEnergy: (value) => setState(() => _energy = value),
+              onSoreness: (value) => setState(() => _soreness = value),
+              onTime: (value) => setState(() => _time = value),
+              onMood: (value) => setState(() => _mood = value),
+            ),
+          const SizedBox(height: 16),
+          _TrainerMessage(message: coachLine),
+          const SizedBox(height: 16),
+          _TodaySessionCard(
+            title: _sessionTitle(provider),
+            detail: _sessionDetail(provider),
+            missed: missed,
+            onStart: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const WorkoutScreen()),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'This week',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          ...plan.asMap().entries.map(
+                (entry) => _PlanStep(
+                  index: entry.key + 1,
+                  text: entry.value,
+                  completed: entry.key < provider.activitySessionsThisWeek,
+                ),
+              ),
+          const SizedBox(height: 16),
+          _SafetyCard(soreness: _soreness),
+        ],
+      ),
     );
   }
 
-  List<_CoachPlanItem> _buildPlan(HabitProvider provider, List<Habit> habits) {
-    final items = <_CoachPlanItem>[];
-
-    for (final habit in habits) {
-      if (habit.id == null) continue;
-      final id = habit.id!;
-      final streak = provider.currentStreak(id);
-      final done = _isDoneToday(provider, habit);
-      final note = provider.completionDetailFor(id, DateTime.now())?.note ?? '';
-
-      if (habit.isQuitHabit) {
-        items.add(
-          _CoachPlanItem(
-            habit: habit,
-            priority: done ? 1 : 3,
-            title: done ? 'Protect the clean day' : 'Reset without hiding it',
-            body: done
-                ? 'You are ${streak == 1 ? "1 day" : "$streak days"} free. Reinforce the anchor that protected you today.'
-                : _fallbackText(habit,
-                    'A slip is logged today. Use the smallest recovery loop and note the trigger.'),
-            icon: done ? Icons.shield_outlined : Icons.restart_alt,
-          ),
-        );
-      } else if (habit.isAmountTracking) {
-        final current = provider.todayAmount(id);
-        final remaining =
-            (habit.targetAmount - current).clamp(0, habit.targetAmount);
-        items.add(
-          _CoachPlanItem(
-            habit: habit,
-            priority: done ? 1 : 4,
-            title: done ? 'Target reached' : 'Close the gap',
-            body: done
-                ? 'Nice. Add a quick note about when this was easiest.'
-                : _fallbackText(
-                    habit,
-                    '$remaining ${habit.unit.isEmpty ? "more" : habit.unit} left. Try the smallest version now.',
-                  ),
-            icon: done ? Icons.flag_circle_outlined : Icons.track_changes,
-          ),
-        );
-      } else {
-        items.add(
-          _CoachPlanItem(
-            habit: habit,
-            priority: done ? 1 : (streak > 0 ? 4 : 3),
-            title: done ? 'Done today' : 'Keep the chain alive',
-            body: done
-                ? 'Capture the cue that made ${habit.name} happen today.'
-                : streak > 0
-                    ? _fallbackText(
-                        habit,
-                        '$streak-day streak at risk. Finish the fallback version.',
-                      )
-                    : _fallbackText(
-                        habit,
-                        'Start with a two-minute version, then mark it complete.',
-                      ),
-            icon: done
-                ? Icons.check_circle_outline
-                : Icons.local_fire_department_outlined,
-          ),
-        );
-      }
-
-      if (done && note.isEmpty) {
-        items.add(
-          _CoachPlanItem(
-            habit: habit,
-            priority: 2,
-            title: 'Add the why',
-            body:
-                'A short diary note turns a checkmark into a pattern you can repeat.',
-            icon: Icons.edit_note_outlined,
-          ),
-        );
-      }
+  String _coachLine(HabitProvider provider) {
+    if (_soreness == 'High') {
+      return 'I am switching you to recovery mode today. Mobility, walking, hydration, and sleep protect the long game.';
     }
-
-    items.sort((a, b) => b.priority.compareTo(a.priority));
-    return items.take(5).toList();
+    if (_energy == 'Low') {
+      return 'Low energy logged. Your minimum effective dose is enough: $_time of easy work, then stop with confidence.';
+    }
+    if (provider.missedPlannedSessionsThisWeek > 0) {
+      return 'You missed a planned session. No drama. I will rebalance the week so the next session matters.';
+    }
+    if ((provider.profile?.fitnessGoal ?? '')
+        .toLowerCase()
+        .contains('strength')) {
+      return 'Strength focus confirmed. Today we protect form first, then add volume only if energy stays steady.';
+    }
+    return 'You are ready for a focused session. I will keep it realistic for your time, energy, soreness, and goal.';
   }
 
-  bool _isDoneToday(HabitProvider provider, Habit habit) {
-    final id = habit.id!;
-    if (habit.isQuitHabit) return !provider.isCompletedToday(id);
-    if (habit.isAmountTracking) {
-      return provider.todayAmount(id) >= habit.targetAmount;
+  String _sessionTitle(HabitProvider provider) {
+    final goal = provider.profile?.fitnessGoal.toLowerCase() ?? '';
+    if (_soreness == 'High') return 'Recovery session';
+    if (goal.contains('run')) return 'Run/walk progression';
+    if (goal.contains('strength') ||
+        (provider.selectedPath ?? '').contains('Gym')) {
+      return 'Strength trainer session';
     }
-    return provider.isCompletedToday(id);
+    return 'Full-body consistency session';
   }
 
-  String _fallbackText(Habit habit, String backup) {
-    if (habit.fallbackBehavior.isEmpty) return backup;
-    return 'Fallback: ${habit.fallbackBehavior}';
+  String _sessionDetail(HabitProvider provider) {
+    if (_soreness == 'High') {
+      return 'Easy mobility, light walk, no heavy loading. Rate pain before doing more.';
+    }
+    if (_time == '15 min') {
+      return 'Short plan: warm up, two focused exercises, one easy finish.';
+    }
+    return 'Warm up, main block, simple finisher, then log how it felt.';
   }
 }
 
-class _PulseHeader extends StatelessWidget {
-  final HabitProvider provider;
-  final List<Habit> habits;
-  final String pathName;
+class _CoachHero extends StatelessWidget {
+  final String persona;
+  final String goal;
+  final int minutes;
+  final int points;
 
-  const _PulseHeader({
-    required this.provider,
-    required this.habits,
-    required this.pathName,
+  const _CoachHero({
+    required this.persona,
+    required this.goal,
+    required this.minutes,
+    required this.points,
   });
 
   @override
   Widget build(BuildContext context) {
-    final complete = provider.completedTodayCount;
-    final total = habits.length;
-    final ratio = total == 0 ? 0.0 : complete / total;
-
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE53935), Color(0xFFFFB74D), Color(0xFF26A69A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(26),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.insights_outlined),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '$pathName: $complete of $total loops protected',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
+              CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.favorite, color: Color(0xFFE53935)),
+              ),
+              SizedBox(width: 10),
+              Text(
+                'ActivHealth Trainer',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(value: ratio, minHeight: 10),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 28),
           Text(
-            ratio == 1
-                ? 'All loops are safe for today. Use the diary to record what worked.'
-                : 'Focus on the smallest next action. ActivHealth loops improve when the fallback is clear.',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-              height: 1.35,
+            persona,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w900,
             ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            goal,
+            style: const TextStyle(color: Colors.white, height: 1.35),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _HeroPill(label: 'Minutes', value: '$minutes'),
+              const SizedBox(width: 10),
+              _HeroPill(label: 'Star points', value: '$points'),
+            ],
           ),
         ],
       ),
@@ -219,236 +206,337 @@ class _PulseHeader extends StatelessWidget {
   }
 }
 
-class _CoachPlanCard extends StatelessWidget {
-  final _CoachPlanItem item;
-  final VoidCallback onOpen;
+class _HeroPill extends StatelessWidget {
+  final String label;
+  final String value;
 
-  const _CoachPlanCard({required this.item, required this.onOpen});
+  const _HeroPill({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    final color = colorFor(item.habit.colorName);
-    return Card(
-      child: InkWell(
-        onTap: onOpen,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(item.icon, color: color),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.22),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(color: Colors.white70)),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompleteProfileCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.person_add_alt),
+        title: const Text('Complete your trainer profile'),
+        subtitle: const Text(
+            'Age, body metrics, goal, and City/Town power better coaching.'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+        ),
+      ),
+    );
+  }
+}
+
+class _DailyCheckIn extends StatelessWidget {
+  final String energy;
+  final String soreness;
+  final String time;
+  final String mood;
+  final ValueChanged<String> onEnergy;
+  final ValueChanged<String> onSoreness;
+  final ValueChanged<String> onTime;
+  final ValueChanged<String> onMood;
+
+  const _DailyCheckIn({
+    required this.energy,
+    required this.soreness,
+    required this.time,
+    required this.mood,
+    required this.onEnergy,
+    required this.onSoreness,
+    required this.onTime,
+    required this.onMood,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Daily check-in',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 12),
+            _ChoiceRow(
+              label: 'Energy',
+              values: const ['Low', 'Steady', 'High'],
+              selected: energy,
+              onChanged: onEnergy,
+            ),
+            _ChoiceRow(
+              label: 'Soreness',
+              values: const ['Low', 'Medium', 'High'],
+              selected: soreness,
+              onChanged: onSoreness,
+            ),
+            _ChoiceRow(
+              label: 'Time',
+              values: const ['15 min', '30 min', '45 min'],
+              selected: time,
+              onChanged: onTime,
+            ),
+            _ChoiceRow(
+              label: 'Mood',
+              values: const ['Tired', 'Focused', 'Driven'],
+              selected: mood,
+              onChanged: onMood,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChoiceRow extends StatelessWidget {
+  final String label;
+  final List<String> values;
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  const _ChoiceRow({
+    required this.label,
+    required this.values,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            children: values
+                .map(
+                  (value) => ChoiceChip(
+                    label: Text(value),
+                    selected: selected == value,
+                    onSelected: (_) => onChanged(value),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrainerMessage extends StatelessWidget {
+  final String message;
+
+  const _TrainerMessage({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF101828),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CircleAvatar(
+              backgroundColor: Color(0xFFE53935),
+              child: Icon(Icons.favorite, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Coach says',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.body,
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        height: 1.3,
-                      ),
-                    ),
-                    if (item.habit.anchor.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    message,
+                    style: const TextStyle(color: Colors.white70, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TodaySessionCard extends StatelessWidget {
+  final String title;
+  final String detail;
+  final int missed;
+  final VoidCallback onStart;
+
+  const _TodaySessionCard({
+    required this.title,
+    required this.detail,
+    required this.missed,
+    required this.onStart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFE4E2),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Icon(Icons.play_arrow, color: Color(0xFFE53935)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        'After: ${item.habit.anchor}',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
+                        title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 6),
-                    Text(
-                      item.habit.name,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                      Text(
+                        missed == 0
+                            ? 'On track'
+                            : '$missed session${missed == 1 ? "" : "s"} to rebalance',
+                        style: TextStyle(color: Colors.grey.shade700),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(detail, style: const TextStyle(height: 1.35)),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: onStart,
+              icon: const Icon(Icons.fitness_center),
+              label: const Text('Open today workout'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
               ),
-              const Icon(Icons.chevron_right),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanStep extends StatelessWidget {
+  final int index;
+  final String text;
+  final bool completed;
+
+  const _PlanStep({
+    required this.index,
+    required this.text,
+    required this.completed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor:
+              completed ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
+          child: Icon(
+            completed ? Icons.check : Icons.calendar_today,
+            color:
+                completed ? const Color(0xFF15803D) : const Color(0xFF2563EB),
           ),
         ),
+        title: Text('Session $index'),
+        subtitle: Text(text),
       ),
     );
   }
 }
 
-class _ReadinessCard extends StatelessWidget {
-  final HabitProvider provider;
+class _SafetyCard extends StatelessWidget {
+  final String soreness;
 
-  const _ReadinessCard({required this.provider});
+  const _SafetyCard({required this.soreness});
 
   @override
   Widget build(BuildContext context) {
-    final minutes = provider.activeMinutesThisWeek;
-    final latest = provider.latestActivity;
-    final message = _message(minutes, latest?.intensity);
-
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      color: soreness == 'High' ? const Color(0xFFFFF1F2) : null,
+      child: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.health_and_safety_outlined, size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Readiness check',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(message, style: const TextStyle(height: 1.35)),
-            const SizedBox(height: 8),
-            Text(
-              'If you feel chest pain, dizziness, unusual shortness of breath, or sharp pain, stop and seek medical advice.',
-              style: TextStyle(color: Colors.grey.shade700, height: 1.35),
+            Icon(Icons.health_and_safety_outlined, color: Color(0xFFE53935)),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Safety first: stop for sharp pain, chest pain, dizziness, or unusual breathlessness. ActivHealth gives coaching support, not medical diagnosis.',
+                style: TextStyle(height: 1.35),
+              ),
             ),
           ],
         ),
       ),
     );
   }
-
-  String _message(int minutes, String? intensity) {
-    if (minutes == 0) {
-      return 'Choose an easy first session today. A short walk or mobility routine is enough to calibrate your plan.';
-    }
-    if (intensity == 'Hard') {
-      return 'Your latest session was hard. Balance it with recovery, hydration, sleep, or gentle movement.';
-    }
-    if (minutes >= 150) {
-      return 'You have a strong active week already. Maintain the rhythm without forcing extra intensity.';
-    }
-    return 'You are building consistency. Add one manageable session before the week ends.';
-  }
-}
-
-class _ReflectionCard extends StatelessWidget {
-  final HabitProvider provider;
-  final List<Habit> habits;
-
-  const _ReflectionCard({required this.provider, required this.habits});
-
-  @override
-  Widget build(BuildContext context) {
-    final notes = habits
-        .where((habit) => habit.id != null)
-        .expand((habit) => provider.getNotesForHabit(habit.id!))
-        .toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.auto_stories_outlined, size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Pattern journal',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              notes.isEmpty
-                  ? 'Add diary notes from any loop detail screen. Coach will surface recent patterns here.'
-                  : '"${notes.first.note}"',
-              style: TextStyle(color: Colors.grey.shade700, height: 1.35),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CoachEmptyState extends StatelessWidget {
-  final VoidCallback onAdd;
-
-  const _CoachEmptyState({required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.psychology_alt_outlined,
-              size: 70,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Build your first coaching loop',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Create one ActivHealth loop with an anchor, fallback, and celebration. Coach will turn check-ins into a short action plan.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade700, height: 1.35),
-            ),
-            const SizedBox(height: 22),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add),
-              label: const Text('Create loop'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CoachPlanItem {
-  final Habit habit;
-  final int priority;
-  final String title;
-  final String body;
-  final IconData icon;
-
-  const _CoachPlanItem({
-    required this.habit,
-    required this.priority,
-    required this.title,
-    required this.body,
-    required this.icon,
-  });
 }

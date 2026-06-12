@@ -25,6 +25,16 @@ const Map<String, IconData> kHabitIcons = {
   'self_improvement': Icons.self_improvement_outlined,
   'water_drop': Icons.water_drop_outlined,
   'directions_run': Icons.directions_run_outlined,
+  'directions_walk': Icons.directions_walk_outlined,
+  'route': Icons.route_outlined,
+  'groups': Icons.groups_outlined,
+  'sports_tennis': Icons.sports_tennis_outlined,
+  'business_center': Icons.business_center_outlined,
+  'edit_note': Icons.edit_note_outlined,
+  'laptop_mac': Icons.laptop_mac_outlined,
+  'restaurant': Icons.restaurant_outlined,
+  'center_focus_strong': Icons.center_focus_strong_outlined,
+  'bedtime': Icons.bedtime_outlined,
 };
 
 Color colorFor(String name) => kHabitColors[name] ?? Colors.blue;

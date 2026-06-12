@@ -172,8 +172,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             controller: _areaController,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
-              labelText: 'Approximate local area',
-              hintText: 'Example: Croydon, South London',
+              labelText: 'City/Town',
+              hintText: 'Example: Croydon or Watford',
               border: OutlineInputBorder(),
             ),
           ),
@@ -182,7 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Visible to nearby members'),
             subtitle: const Text(
-              'Uses approximate area only until secure community backend is connected.',
+              'Uses City/Town only until secure community matching is connected.',
             ),
             value: _shareApproxLocation,
             onChanged: (value) => setState(() => _shareApproxLocation = value),
@@ -208,7 +208,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final area = _areaController.text.trim();
     if (age <= 0 || height <= 0 || weight <= 0 || area.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete age, height, weight, and area')),
+        const SnackBar(
+          content: Text('Complete age, height, weight, and City/Town'),
+        ),
       );
       return;
     }

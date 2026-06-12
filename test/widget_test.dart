@@ -8,6 +8,7 @@ void main() {
     await tester.pumpWidget(
       HabitTrackerApp(habitProvider: HabitProvider()),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('ActivHealth'), findsOneWidget);
     expect(
@@ -19,5 +20,6 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Gym or training focused'), findsOneWidget);
+    expect(find.text('Runner or walker'), findsOneWidget);
   });
 }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/activity.dart';
 import '../services/habit_provider.dart';
+import 'share_screen.dart';
 
 class GroupsScreen extends StatelessWidget {
   const GroupsScreen({super.key});
@@ -21,6 +22,13 @@ class GroupsScreen extends StatelessWidget {
             tooltip: 'Create group',
             onPressed: () => _showCreateGroup(context),
             icon: const Icon(Icons.group_add_outlined),
+          ),
+          IconButton(
+            tooltip: 'Share',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ShareScreen()),
+            ),
+            icon: const Icon(Icons.ios_share),
           ),
         ],
       ),

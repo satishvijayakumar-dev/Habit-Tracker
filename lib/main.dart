@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'screens/home_shell.dart';
+import 'screens/security_gate.dart';
 import 'services/habit_provider.dart';
 import 'services/notification_service.dart';
 
@@ -33,14 +33,40 @@ class HabitTrackerApp extends StatelessWidget {
         title: 'ActivHealth',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFFE53935),
+            primary: const Color(0xFFE53935),
+            secondary: const Color(0xFF0E9F6E),
+            tertiary: const Color(0xFF2563EB),
+            surface: const Color(0xFFFFFBFA),
+          ),
           useMaterial3: true,
-          appBarTheme: const AppBarTheme(centerTitle: false),
+          scaffoldBackgroundColor: const Color(0xFFFFFBFA),
+          appBarTheme: const AppBarTheme(
+            centerTitle: false,
+            backgroundColor: Color(0xFFFFFBFA),
+            surfaceTintColor: Colors.transparent,
+          ),
           cardTheme: CardThemeData(
-            elevation: 0,
+            elevation: 0.5,
+            shadowColor: const Color(0x22000000),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(18),
+              side: const BorderSide(color: Color(0xFFF0E7E5)),
+            ),
+          ),
+          navigationBarTheme: NavigationBarThemeData(
+            backgroundColor: Colors.white,
+            indicatorColor: const Color(0xFFFFE4E2),
+            labelTextStyle: WidgetStateProperty.all(
+              const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+          filledButtonTheme: FilledButtonThemeData(
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
           ),
         ),
@@ -52,7 +78,7 @@ class HabitTrackerApp extends StatelessWidget {
           useMaterial3: true,
         ),
         themeMode: ThemeMode.system,
-        home: const HomeShell(),
+        home: const SecurityGate(),
       ),
     );
   }

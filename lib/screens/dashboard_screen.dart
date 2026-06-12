@@ -5,7 +5,9 @@ import '../services/habit_provider.dart';
 import 'activity_log_screen.dart';
 import 'add_edit_habit_screen.dart';
 import 'all_habits_screen.dart';
+import 'nutrition_screen.dart';
 import 'profile_screen.dart';
+import 'share_screen.dart';
 import 'workout_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -32,6 +34,13 @@ class DashboardScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const ProfileScreen()),
             ),
             icon: const Icon(Icons.person_outline),
+          ),
+          IconButton(
+            tooltip: 'Share',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ShareScreen()),
+            ),
+            icon: const Icon(Icons.ios_share),
           ),
         ],
       ),
@@ -99,6 +108,19 @@ class DashboardScreen extends StatelessWidget {
             sessions: sessions,
             loopsDone: loopsDone,
             loopsTotal: loopsTotal,
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.restaurant_menu_outlined),
+              title: const Text('Nutrition coach'),
+              subtitle:
+                  const Text('Protein, hydration, and meal cues for your plan'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NutritionScreen()),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           _LatestActivityCard(
@@ -348,7 +370,7 @@ class _PrivacyCard extends StatelessWidget {
             Expanded(
               child: Text(
                 area == null || area!.isEmpty
-                    ? 'Groups use approximate areas only. Complete your profile before community matching.'
+                    ? 'Groups use City/Town only. Complete your profile before community matching.'
                     : 'Community matching is set to $area. Exact GPS and user-to-user invites need the secure backend phase.',
                 style: const TextStyle(height: 1.35),
               ),

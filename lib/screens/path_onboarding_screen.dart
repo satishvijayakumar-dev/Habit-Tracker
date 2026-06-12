@@ -29,6 +29,18 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
           icon: Icons.fitness_center,
         ),
         _AnswerOption(
+          label: 'Runner or walker',
+          description: 'I want distance, pace, routes, and consistency.',
+          personaKey: 'runner',
+          icon: Icons.directions_run,
+        ),
+        _AnswerOption(
+          label: 'Social sports',
+          description: 'Badminton, football, tennis, cycling, or group play.',
+          personaKey: 'social',
+          icon: Icons.groups_outlined,
+        ),
+        _AnswerOption(
           label: 'Office going',
           description: 'Commute, desk time, meetings, and packed days.',
           personaKey: 'office',
@@ -41,10 +53,10 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
           icon: Icons.home_work_outlined,
         ),
         _AnswerOption(
-          label: 'Normal mixed routine',
-          description: 'A bit of everything, and I want simple consistency.',
-          personaKey: 'balanced',
-          icon: Icons.balance_outlined,
+          label: 'First-time starter',
+          description: 'I want confidence, safety, and a simple first plan.',
+          personaKey: 'starter',
+          icon: Icons.flag_outlined,
         ),
       ],
     ),
@@ -59,6 +71,18 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
           icon: Icons.bolt_outlined,
         ),
         _AnswerOption(
+          label: 'Run or walk better',
+          description: 'Build pace, distance, and weekly rhythm.',
+          personaKey: 'runner',
+          icon: Icons.route_outlined,
+        ),
+        _AnswerOption(
+          label: 'Find active people',
+          description: 'Use sport and accountability to stay consistent.',
+          personaKey: 'social',
+          icon: Icons.handshake_outlined,
+        ),
+        _AnswerOption(
           label: 'Focus at work',
           description: 'Deep work, meeting resets, and end-of-day shutdown.',
           personaKey: 'office',
@@ -71,10 +95,10 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
           icon: Icons.door_front_door_outlined,
         ),
         _AnswerOption(
-          label: 'Better everyday rhythm',
-          description: 'Small wins that make the whole day calmer.',
-          personaKey: 'balanced',
-          icon: Icons.route_outlined,
+          label: 'Confidence first',
+          description: 'Small wins that make starting feel safe.',
+          personaKey: 'starter',
+          icon: Icons.verified_outlined,
         ),
       ],
     ),
@@ -89,6 +113,18 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
           icon: Icons.battery_2_bar_outlined,
         ),
         _AnswerOption(
+          label: 'Weather or route friction',
+          description: 'I need backup plans when I cannot get outside.',
+          personaKey: 'runner',
+          icon: Icons.cloud_outlined,
+        ),
+        _AnswerOption(
+          label: 'No one to train with',
+          description: 'I need people, events, or accountability.',
+          personaKey: 'social',
+          icon: Icons.person_search_outlined,
+        ),
+        _AnswerOption(
           label: 'Back-to-back work',
           description: 'I forget basics when my calendar fills up.',
           personaKey: 'office',
@@ -101,10 +137,10 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
           icon: Icons.blur_on_outlined,
         ),
         _AnswerOption(
-          label: 'Too many goals',
-          description: 'I want fewer loops that I can actually keep.',
-          personaKey: 'balanced',
-          icon: Icons.filter_3_outlined,
+          label: 'Starting feels too big',
+          description: 'I need a beginner-safe first step.',
+          personaKey: 'starter',
+          icon: Icons.stairs_outlined,
         ),
       ],
     ),
@@ -118,6 +154,18 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
               'Remind me to prep simple food and hydration around workouts.',
           personaKey: 'gym',
           icon: Icons.restaurant_menu_outlined,
+        ),
+        _AnswerOption(
+          label: 'Fuel runs and walks',
+          description: 'Hydration and simple meals around movement.',
+          personaKey: 'runner',
+          icon: Icons.water_drop_outlined,
+        ),
+        _AnswerOption(
+          label: 'Group-day basics',
+          description: 'Food, hydration, and recovery around events.',
+          personaKey: 'social',
+          icon: Icons.sports_outlined,
         ),
         _AnswerOption(
           label: 'Office-friendly basics',
@@ -135,7 +183,7 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
           label: 'Keep it simple',
           description:
               'Hydration, one mindful meal cue, and no complicated plan.',
-          personaKey: 'balanced',
+          personaKey: 'starter',
           icon: Icons.water_drop_outlined,
         ),
       ],
@@ -145,11 +193,24 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
   static const _personas = {
     'gym': _Persona(
       key: 'gym',
-      name: 'Gym-Focused',
-      description:
-          'Loops for training readiness, energy, hydration, and recovery.',
+      name: 'The Gym Builder',
+      description: 'Strength plans, form cues, recovery, and progression.',
       icon: Icons.fitness_center,
-      color: Colors.teal,
+      color: Colors.red,
+    ),
+    'runner': _Persona(
+      key: 'runner',
+      name: 'The Runner / Walker',
+      description: 'Pace, distance, active minutes, and safer progression.',
+      icon: Icons.directions_run,
+      color: Colors.blue,
+    ),
+    'social': _Persona(
+      key: 'social',
+      name: 'The Social Sports User',
+      description: 'Group activity, local accountability, and shared sessions.',
+      icon: Icons.groups_outlined,
+      color: Colors.purple,
     ),
     'office': _Persona(
       key: 'office',
@@ -173,6 +234,13 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
       description:
           'Loops for simple consistency across health, focus, and calm.',
       icon: Icons.balance_outlined,
+      color: Colors.green,
+    ),
+    'starter': _Persona(
+      key: 'starter',
+      name: 'The Starter',
+      description: 'Beginner-safe actions for confidence and consistency.',
+      icon: Icons.flag_outlined,
       color: Colors.green,
     ),
   };
@@ -266,6 +334,60 @@ class _PathOnboardingScreenState extends State<PathOnboardingScreen> {
             celebration: 'I kept the chain alive',
             pathName: persona.name,
             difficulty: 'manageable',
+          ),
+        ];
+      case 'runner':
+        return [
+          Habit(
+            name: 'Shoes by the door',
+            description: 'Make the next walk or run easier to start.',
+            colorName: 'blue',
+            iconName: 'directions_run',
+            createdAt: now,
+            anchor: 'After dinner',
+            fallbackBehavior: 'Put socks and shoes together',
+            celebration: 'Tomorrow already started',
+            pathName: persona.name,
+            difficulty: 'tiny',
+          ),
+          Habit(
+            name: 'Easy movement window',
+            description: 'Protect one low-pressure walk or run slot.',
+            colorName: 'green',
+            iconName: 'route',
+            createdAt: now,
+            anchor: 'After work or lunch',
+            fallbackBehavior: 'Walk for five minutes',
+            celebration: 'I kept the rhythm',
+            pathName: persona.name,
+            difficulty: 'manageable',
+          ),
+        ];
+      case 'social':
+        return [
+          Habit(
+            name: 'Check activity group',
+            description: 'Keep local accountability visible.',
+            colorName: 'purple',
+            iconName: 'groups',
+            createdAt: now,
+            anchor: 'After lunch',
+            fallbackBehavior: 'Send one message or check one event',
+            celebration: 'I stayed connected',
+            pathName: persona.name,
+            difficulty: 'tiny',
+          ),
+          Habit(
+            name: 'Pack sport kit',
+            description: 'Remove friction before a group session.',
+            colorName: 'orange',
+            iconName: 'sports_tennis',
+            createdAt: now,
+            anchor: 'Before bed',
+            fallbackBehavior: 'Put one item by the door',
+            celebration: 'I made showing up easier',
+            pathName: persona.name,
+            difficulty: 'tiny',
           ),
         ];
       case 'office':
