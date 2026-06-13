@@ -33,6 +33,12 @@ dependencies:
   # Typography (Sora display / Inter body — Midnight Coach design system)
   google_fonts: ^6.2.1
 
+  # Shared cloud backend (own Supabase project, shared org/billing with DittoPix)
+  supabase_flutter: ^2.5.0
+
+  # Geolocation — precise on device, only a coarse point is ever stored/shared
+  geolocator: ^13.0.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
