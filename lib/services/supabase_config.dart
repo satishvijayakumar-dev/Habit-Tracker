@@ -20,4 +20,9 @@ abstract final class SupabaseConfig {
   );
 
   static bool get isConfigured => url.isNotEmpty && publishableKey.isNotEmpty;
+
+  /// Deep-link the OAuth / magic-link flow returns to. Registered natively
+  /// (iOS CFBundleURLTypes + Android intent-filter) and must be added to the
+  /// Supabase Auth "Redirect URLs" allow-list.
+  static const String authRedirect = 'activhealth://login-callback/';
 }

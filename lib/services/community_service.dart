@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/community.dart';
 import 'geo_service.dart';
+import 'supabase_config.dart';
 
 /// Thin client over the ActivHealth Supabase community backend.
 ///
@@ -12,14 +13,26 @@ class CommunityService {
   SupabaseClient get _db => Supabase.instance.client;
 
   // -- Auth --
-  String? get currentUserId => _db.auth.currentUser?.id;
+  /// Safe even when Supabase isn't initialised (e.g. offline build or tests):
+  /// returns null rather than throwing, so UI that checks sign-in state in
+  /// build() never crashes.
+  String? get currentUserId {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
   bool get isSignedIn => currentUserId != null;
   Stream<AuthState> get authChanges => _db.auth.onAuthStateChange;
 
-  /// Email magic-link / OTP sign-in (no password). The deep-link or 6-digit
-  /// code completes it via [verifyEmailOtp].
-  Future<void> signInWithEmail(String email) =>
-      _db.auth.signInWithOtp(email: email.trim());
+  /// Email OTP sign-in (no password). A 6-digit code is emailed; complete it
+  /// via [verifyEmailOtp]. Works with no third-party provider config.
+  Future<void> signInWithEmail(String email) => _db.auth.signInWithOtp(
+        email: email.trim(),
+        emailRedirectTo: SupabaseConfig.authRedirect,
+      );
 
   Future<void> verifyEmailOtp(String email, String token) async {
     await _db.auth.verifyOTP(
@@ -28,6 +41,21 @@ class CommunityService {
       type: OtpType.email,
     );
   }
+
+  /// Google OAuth via the Supabase hosted flow, returning through the
+  /// app's deep link. Requires the Google provider configured in Supabase.
+  Future<bool> signInWithGoogle() => _db.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: SupabaseConfig.authRedirect,
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
+
+  /// Sign in with Apple (required on iOS when other providers are offered).
+  Future<bool> signInWithApple() => _db.auth.signInWithOAuth(
+        OAuthProvider.apple,
+        redirectTo: SupabaseConfig.authRedirect,
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
 
   Future<void> signOut() => _db.auth.signOut();
 
@@ -106,6 +134,18 @@ class CommunityService {
   Future<GroupMembership> joinGroup(String groupId) async {
     final row = await _db.rpc('join_group', params: {'in_group_id': groupId});
     return GroupMembership.fromMap(row as Map<String, dynamic>);
+  }
+
+  // -- Group chat --
+  /// Recent messages for a group, oldest first.
+  Future<List<Map<String, dynamic>>> messageHistory(String groupId) async {
+    final rows = await _db
+        .from('messages')
+        .select()
+        .eq('group_id', groupId)
+        .order('created_at', ascending: true)
+        .limit(100) as List<dynamic>;
+    return rows.cast<Map<String, dynamic>>();
   }
 
   // -- Realtime group chat (subscribe to a group's messages) --

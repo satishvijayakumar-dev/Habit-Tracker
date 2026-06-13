@@ -3,14 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/activity.dart';
+import '../services/community_service.dart';
 import '../services/habit_provider.dart';
 import '../theme/app_theme.dart';
+import 'live_community_screen.dart';
 import 'share_screen.dart';
+import 'sign_in_screen.dart';
 
 /// Community: social sport groups — pickleball, badminton, tennis, padel
-/// and more. Local-first today (groups live on this device); the shared
-/// backend turns these into real clubs with sessions, RSVP, and chat.
-class GroupsScreen extends StatelessWidget {
+/// and more. Signed-out users see a local preview; signing in switches the
+/// tab to the live, networked community (discover, join, chat).
+class GroupsScreen extends StatefulWidget {
   const GroupsScreen({super.key});
 
   static const kSports = [
@@ -27,11 +30,25 @@ class GroupsScreen extends StatelessWidget {
   ];
 
   @override
+  State<GroupsScreen> createState() => _GroupsScreenState();
+}
+
+class _GroupsScreenState extends State<GroupsScreen> {
+  final _community = CommunityService();
+
+  Future<void> _signIn() async {
+    final ok = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const SignInScreen()),
+    );
+    if (ok == true && mounted) setState(() {}); // re-evaluate live mode
+  }
+
+  @override
   Widget build(BuildContext context) {
     final provider = context.watch<HabitProvider>();
-    final groups = provider.localGroups;
     final profile = provider.profile;
-    final textTheme = Theme.of(context).textTheme;
+    final optedIn = provider.communityOptIn;
+    final signedIn = _community.isSignedIn;
 
     return Scaffold(
       appBar: AppBar(
@@ -46,37 +63,68 @@ class GroupsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-            Ah.gutter, Ah.s8, Ah.gutter, Ah.s48 + Ah.s32),
+      body: Column(
         children: [
-          // -- Opt-in: one simple switch --
-          _OptInCard(
-            optedIn: provider.communityOptIn,
-            area: profile?.areaName,
-            onChanged: (v) {
-              provider.setCommunityOptIn(v);
-              if (v) _showOptInDialog(context);
-            },
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, 0),
+            child: _OptInCard(
+              optedIn: optedIn,
+              area: profile?.areaName,
+              onChanged: (v) {
+                provider.setCommunityOptIn(v);
+                if (v) _showOptInDialog(context);
+              },
+            ),
           ),
-          const SizedBox(height: Ah.s24),
-
-          if (provider.communityOptIn) ...[
-            Text('Your groups', style: textTheme.titleLarge),
-            const SizedBox(height: Ah.s8),
-            ...groups.map((group) => _GroupCard(group: group)),
-          ] else
-            _OptedOutHint(textTheme: textTheme),
+          const SizedBox(height: Ah.s16),
+          Expanded(child: _content(context, optedIn, signedIn)),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'community_fab',
-        onPressed: () => _showCreateGroup(context),
-        backgroundColor: Ah.accent,
-        foregroundColor: Ah.onAccent,
-        icon: const Icon(Icons.group_add_outlined),
-        label: const Text('New group'),
-      ),
+      floatingActionButton: (optedIn && !signedIn)
+          ? FloatingActionButton.extended(
+              heroTag: 'community_fab',
+              onPressed: () => _showCreateGroup(context),
+              backgroundColor: Ah.accent,
+              foregroundColor: Ah.onAccent,
+              icon: const Icon(Icons.group_add_outlined),
+              label: const Text('New group'),
+            )
+          : null,
+    );
+  }
+
+  Widget _content(BuildContext context, bool optedIn, bool signedIn) {
+    final provider = context.watch<HabitProvider>();
+    final textTheme = Theme.of(context).textTheme;
+
+    if (!optedIn) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(Ah.gutter, 0, Ah.gutter, Ah.s32),
+        children: [_OptedOutHint(textTheme: textTheme)],
+      );
+    }
+
+    if (signedIn) {
+      return LiveCommunity(
+        displayName: provider.userName,
+        areaName: provider.profile?.areaName,
+      );
+    }
+
+    // Opted in but signed out: prompt to go live + local preview.
+    return ListView(
+      padding:
+          const EdgeInsets.fromLTRB(Ah.gutter, 0, Ah.gutter, Ah.s48 + Ah.s32),
+      children: [
+        _GoLiveCard(onSignIn: _signIn),
+        const SizedBox(height: Ah.s24),
+        Text('Preview', style: textTheme.titleLarge),
+        const SizedBox(height: 2),
+        Text('Sign in to see real groups and people near you.',
+            style: textTheme.labelMedium),
+        const SizedBox(height: Ah.s12),
+        ...provider.localGroups.map((g) => _GroupCard(group: g)),
+      ],
     );
   }
 
@@ -94,7 +142,7 @@ class GroupsScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         title: const Text("You're in the community"),
         content: const Text(
-          'People nearby with similar interests can now find your group and ask to join or chat. '
+          'People nearby with similar interests can find your group and ask to join or chat. '
           'Only your approximate area is shared — never your exact location. '
           'You can opt out or silence notifications any time from Settings.',
         ),
@@ -102,6 +150,48 @@ class GroupsScreen extends StatelessWidget {
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GoLiveCard extends StatelessWidget {
+  final VoidCallback onSignIn;
+  const _GoLiveCard({required this.onSignIn});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(Ah.gutter),
+      decoration: BoxDecoration(
+        gradient: Ah.brandGradient,
+        borderRadius: BorderRadius.circular(Ah.rXl),
+        boxShadow: Ah.accentGlow(opacity: 0.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.bolt, color: Ah.onAccent, size: 24),
+          const SizedBox(height: Ah.s8),
+          Text('Go live',
+              style: textTheme.headlineSmall?.copyWith(color: Ah.onAccent)),
+          const SizedBox(height: Ah.s4),
+          Text(
+            'Sign in to discover real groups near you, join sessions, and chat with members.',
+            style: textTheme.bodyMedium?.copyWith(
+                color: Ah.onAccent.withValues(alpha: 0.85), height: 1.4),
+          ),
+          const SizedBox(height: Ah.s16),
+          FilledButton(
+            onPressed: onSignIn,
+            style: FilledButton.styleFrom(
+              backgroundColor: Ah.onAccent,
+              foregroundColor: Ah.accent,
+            ),
+            child: const Text('Sign in to go live'),
           ),
         ],
       ),

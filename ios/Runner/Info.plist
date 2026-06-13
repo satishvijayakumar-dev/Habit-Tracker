@@ -6,6 +6,19 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>ActivHealth uses your location to find fitness groups and sessions near you. Only an approximate area is ever saved or shared with others — never your exact location.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.satisapps.habitTracker.auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>activhealth</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
