@@ -4,12 +4,17 @@ import '../models/activity.dart';
 import '../models/habit.dart';
 import '../models/user_profile.dart';
 import 'database_service.dart';
+import 'habit_store.dart';
 import 'notification_service.dart';
 import 'streak_engine.dart';
 
 class HabitProvider extends ChangeNotifier {
-  final DatabaseService _db = DatabaseService.instance;
+  /// Persistence backend. Defaults to the SQLite [DatabaseService];
+  /// tests inject an in-memory [HabitStore].
+  final HabitStore _db;
   final NotificationService _notif = NotificationService.instance;
+
+  HabitProvider({HabitStore? store}) : _db = store ?? DatabaseService.instance;
 
   /// Free tier: up to this many active loops. Pro removes the cap.
   static const int freeLoopLimit = 3;

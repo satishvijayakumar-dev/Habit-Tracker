@@ -84,8 +84,7 @@ class TodayScreen extends StatelessWidget {
                     ),
                     child: Text(
                       provider.selectedPath!,
-                      style: textTheme.labelMedium
-                          ?.copyWith(color: Ah.accent),
+                      style: textTheme.labelMedium?.copyWith(color: Ah.accent),
                     ),
                   ),
               ],
@@ -128,8 +127,7 @@ class TodayScreen extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child:
-                      Text("Today's loops", style: textTheme.titleLarge),
+                  child: Text("Today's loops", style: textTheme.titleLarge),
                 ),
                 TextButton.icon(
                   onPressed: () => _addLoop(context),
@@ -157,6 +155,7 @@ class TodayScreen extends StatelessWidget {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: FloatingActionButton(
+        heroTag: 'today_fab',
         backgroundColor: Ah.accent,
         foregroundColor: Ah.onAccent,
         tooltip: 'Log activity',

@@ -5,8 +5,9 @@ import 'package:sqflite/sqflite.dart';
 import '../models/activity.dart';
 import '../models/habit.dart';
 import '../models/user_profile.dart';
+import 'habit_store.dart';
 
-class DatabaseService {
+class DatabaseService implements HabitStore {
   DatabaseService._();
   static final DatabaseService instance = DatabaseService._();
 
@@ -178,6 +179,7 @@ class DatabaseService {
 
   // -- Habits --
 
+  @override
   Future<List<Habit>> getActiveHabits() async {
     final db = await database;
     final rows = await db.query(
@@ -188,12 +190,14 @@ class DatabaseService {
     return rows.map(Habit.fromMap).toList();
   }
 
+  @override
   Future<int> insertHabit(Habit habit) async {
     final db = await database;
     final map = habit.toMap()..remove('id');
     return db.insert('habits', map);
   }
 
+  @override
   Future<void> updateHabit(Habit habit) async {
     if (habit.id == null) {
       throw ArgumentError('Cannot update a habit without an id');
@@ -207,6 +211,7 @@ class DatabaseService {
     );
   }
 
+  @override
   Future<void> deleteHabit(int habitId) async {
     final db = await database;
     await db.delete('completions', where: 'habit_id = ?', whereArgs: [habitId]);
@@ -215,6 +220,7 @@ class DatabaseService {
 
   // -- Completions --
 
+  @override
   Future<List<Completion>> getCompletionsForHabit(int habitId) async {
     final db = await database;
     final rows = await db.query(
@@ -226,6 +232,7 @@ class DatabaseService {
     return rows.map(Completion.fromMap).toList();
   }
 
+  @override
   Future<void> addCompletion(int habitId, DateTime date,
       {int amount = 1, String note = ''}) async {
     final db = await database;
@@ -242,6 +249,7 @@ class DatabaseService {
     );
   }
 
+  @override
   Future<void> removeCompletion(int habitId, DateTime date) async {
     final db = await database;
     final dayKey = DateTime(date.year, date.month, date.day);
@@ -278,6 +286,7 @@ class DatabaseService {
 
   // -- Settings --
 
+  @override
   Future<String?> getSetting(String key) async {
     final db = await database;
     final rows = await db.query(
@@ -291,6 +300,7 @@ class DatabaseService {
     return rows.first['value'] as String;
   }
 
+  @override
   Future<void> setSetting(String key, String value) async {
     final db = await database;
     await db.insert(
@@ -302,18 +312,21 @@ class DatabaseService {
 
   // -- Activities --
 
+  @override
   Future<List<ActivityLog>> getActivities() async {
     final db = await database;
     final rows = await db.query('activities', orderBy: 'completed_at DESC');
     return rows.map(ActivityLog.fromMap).toList();
   }
 
+  @override
   Future<int> insertActivity(ActivityLog activity) async {
     final db = await database;
     final map = activity.toMap()..remove('id');
     return db.insert('activities', map);
   }
 
+  @override
   Future<void> deleteActivity(int activityId) async {
     final db = await database;
     await db.delete('activities', where: 'id = ?', whereArgs: [activityId]);
@@ -321,18 +334,21 @@ class DatabaseService {
 
   // -- Local groups --
 
+  @override
   Future<List<LocalGroup>> getLocalGroups() async {
     final db = await database;
     final rows = await db.query('local_groups', orderBy: 'created_at DESC');
     return rows.map(LocalGroup.fromMap).toList();
   }
 
+  @override
   Future<int> insertLocalGroup(LocalGroup group) async {
     final db = await database;
     final map = group.toMap()..remove('id');
     return db.insert('local_groups', map);
   }
 
+  @override
   Future<void> updateLocalGroup(LocalGroup group) async {
     if (group.id == null) return;
     final db = await database;
@@ -346,6 +362,7 @@ class DatabaseService {
 
   // -- User profile --
 
+  @override
   Future<UserProfile?> getUserProfile() async {
     final db = await database;
     final rows = await db.query('user_profile', limit: 1);
@@ -353,6 +370,7 @@ class DatabaseService {
     return UserProfile.fromMap(rows.first);
   }
 
+  @override
   Future<void> saveUserProfile(UserProfile profile) async {
     final db = await database;
     final map = profile.toMap()
@@ -365,12 +383,14 @@ class DatabaseService {
     );
   }
 
+  @override
   Future<List<BodyMetric>> getBodyMetrics() async {
     final db = await database;
     final rows = await db.query('body_metrics', orderBy: 'recorded_at DESC');
     return rows.map(BodyMetric.fromMap).toList();
   }
 
+  @override
   Future<int> insertBodyMetric(BodyMetric metric) async {
     final db = await database;
     final map = metric.toMap()..remove('id');

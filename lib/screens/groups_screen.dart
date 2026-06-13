@@ -47,8 +47,8 @@ class GroupsScreen extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding:
-            const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s48 + Ah.s32),
+        padding: const EdgeInsets.fromLTRB(
+            Ah.gutter, Ah.s8, Ah.gutter, Ah.s48 + Ah.s32),
         children: [
           // -- One honest locked card, styled with intent --
           Container(
@@ -98,6 +98,7 @@ class GroupsScreen extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'community_fab',
         onPressed: () => _showCreateGroup(context),
         backgroundColor: Ah.accent,
         foregroundColor: Ah.onAccent,
@@ -167,8 +168,7 @@ class _GroupCard extends StatelessWidget {
               Row(
                 children: [
                   _Tag(
-                      icon: Icons.signal_cellular_alt,
-                      label: group.skillLevel),
+                      icon: Icons.signal_cellular_alt, label: group.skillLevel),
                   const SizedBox(width: Ah.s8),
                   _Tag(
                       icon: Icons.lock_outline,
@@ -233,8 +233,7 @@ class _Tag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: Ah.s8, vertical: Ah.s4),
+      padding: const EdgeInsets.symmetric(horizontal: Ah.s8, vertical: Ah.s4),
       decoration: BoxDecoration(
         color: Ah.surface2,
         borderRadius: BorderRadius.circular(Ah.rSm),
@@ -265,9 +264,8 @@ class _JoinButton extends StatelessWidget {
       decoration: BoxDecoration(
         color: joined ? Ah.tint(Ah.mint) : Ah.accent,
         borderRadius: BorderRadius.circular(Ah.rXl),
-        border: joined
-            ? Border.all(color: Ah.mint.withValues(alpha: 0.5))
-            : null,
+        border:
+            joined ? Border.all(color: Ah.mint.withValues(alpha: 0.5)) : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -278,8 +276,8 @@ class _JoinButton extends StatelessWidget {
             context.read<HabitProvider>().toggleJoinGroup(group);
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: Ah.s16, vertical: Ah.s8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: Ah.s16, vertical: Ah.s8),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -345,8 +343,7 @@ class _CreateGroupSheetState extends State<_CreateGroupSheet> {
             TextField(
               controller: _nameController,
               textCapitalization: TextCapitalization.words,
-              decoration:
-                  const InputDecoration(labelText: 'Group name'),
+              decoration: const InputDecoration(labelText: 'Group name'),
             ),
             const SizedBox(height: Ah.s12),
             TextField(
@@ -386,8 +383,7 @@ class _CreateGroupSheetState extends State<_CreateGroupSheet> {
                     (level) => ChoiceChip(
                       label: Text(level),
                       selected: _skillLevel == level,
-                      onSelected: (_) =>
-                          setState(() => _skillLevel = level),
+                      onSelected: (_) => setState(() => _skillLevel = level),
                     ),
                   )
                   .toList(),
@@ -406,8 +402,7 @@ class _CreateGroupSheetState extends State<_CreateGroupSheet> {
                     (option) => ChoiceChip(
                       label: Text(option.$2),
                       selected: _privacy == option.$1,
-                      onSelected: (_) =>
-                          setState(() => _privacy = option.$1),
+                      onSelected: (_) => setState(() => _privacy = option.$1),
                     ),
                   )
                   .toList(),
