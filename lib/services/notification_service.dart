@@ -127,9 +127,17 @@ class NotificationService {
       hour,
       minute,
     );
-    if (!scheduled.isAfter(now)) {
+    if (rollsToTomorrow(now, hour, minute)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
     return scheduled;
+  }
+
+  /// Whether a reminder at [hour]:[minute] should fire tomorrow rather
+  /// than today, given [now] — i.e. the time has already passed (or is
+  /// exactly now). Pure and time-zone agnostic so it can be unit-tested.
+  static bool rollsToTomorrow(DateTime now, int hour, int minute) {
+    final todayAtTime = DateTime(now.year, now.month, now.day, hour, minute);
+    return !todayAtTime.isAfter(now);
   }
 }
