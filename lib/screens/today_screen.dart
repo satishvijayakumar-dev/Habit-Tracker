@@ -5,19 +5,36 @@ import 'package:provider/provider.dart';
 import '../models/habit.dart';
 import '../services/habit_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/coach_popup.dart';
 import '../widgets/habit_tile.dart';
+import '../widgets/insights.dart';
 import '../widgets/momentum_ring.dart';
 import 'activity_log_screen.dart';
 import 'add_edit_habit_screen.dart';
-import 'coach_screen.dart';
 import 'habit_detail_screen.dart';
+import 'nutrition_screen.dart';
 import 'paywall_screen.dart';
+import 'settings_screen.dart';
 import 'workout_screen.dart';
 
-/// The day, on one screen: greeting, Momentum Ring, 1-tap loops,
-/// today's session, one coach nudge. Nothing else.
-class TodayScreen extends StatelessWidget {
+/// The day, on one screen: persona Focus banner (what to do) → Momentum Ring
+/// (progress) → tappable stats (detail) → 1-tap loops (do). The coach greets
+/// the user in a pop-up on open instead of a static card.
+class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
+
+  @override
+  State<TodayScreen> createState() => _TodayScreenState();
+}
+
+class _TodayScreenState extends State<TodayScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      maybeShowCoachOnOpen(context, context.read<HabitProvider>());
+    });
+  }
 
   String _greeting(String name) {
     final hour = DateTime.now().hour;
@@ -29,17 +46,15 @@ class TodayScreen extends StatelessWidget {
     return name.isEmpty ? '$part.' : '$part, $name.';
   }
 
-  void _addLoop(BuildContext context) {
+  void _addLoop() {
     final provider = context.read<HabitProvider>();
     if (!provider.canAddLoop) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const PaywallScreen()),
-      );
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const PaywallScreen()));
       return;
     }
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AddEditHabitScreen()),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const AddEditHabitScreen()));
   }
 
   @override
@@ -48,7 +63,6 @@ class TodayScreen extends StatelessWidget {
     final habits = provider.habits;
     final textTheme = Theme.of(context).textTheme;
     final dateString = DateFormat('EEEE d MMMM').format(DateTime.now());
-    final nudge = _coachNudge(provider);
 
     return Scaffold(
       body: SafeArea(
@@ -58,7 +72,6 @@ class TodayScreen extends StatelessWidget {
           children: [
             // -- Header --
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
@@ -66,28 +79,35 @@ class TodayScreen extends StatelessWidget {
                     children: [
                       Text(dateString, style: textTheme.labelMedium),
                       const SizedBox(height: 2),
-                      Text(
-                        _greeting(provider.userName),
-                        style: textTheme.headlineMedium,
-                      ),
+                      Text(_greeting(provider.userName),
+                          style: textTheme.headlineMedium),
                     ],
                   ),
                 ),
-                if (provider.selectedPath != null)
-                  Container(
-                    margin: const EdgeInsets.only(top: Ah.s4),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: Ah.s12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Ah.tint(Ah.accent),
-                      borderRadius: BorderRadius.circular(Ah.rSm),
-                    ),
-                    child: Text(
-                      provider.selectedPath!,
-                      style: textTheme.labelMedium?.copyWith(color: Ah.accent),
-                    ),
+                IconButton(
+                  tooltip: 'Settings',
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
                   ),
+                ),
               ],
+            ),
+            const SizedBox(height: Ah.s16),
+
+            // -- Persona Focus banner --
+            _FocusBanner(
+              persona: provider.selectedPath ?? 'Your plan',
+              summary: _focusSummary(provider),
+              onLog: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ActivityLogScreen()),
+              ),
+              onSession: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const WorkoutScreen()),
+              ),
+              onFuel: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NutritionScreen()),
+              ),
             ),
             const SizedBox(height: Ah.s24),
 
@@ -98,28 +118,47 @@ class TodayScreen extends StatelessWidget {
                 loopsTotal: habits.length,
                 activeMinutes: provider.activeMinutesThisWeek,
                 minutesTarget: provider.weeklyMinutesTarget,
+                size: 190,
               ),
             ),
             const SizedBox(height: Ah.s24),
 
-            // -- One coach nudge, max --
-            if (nudge != null) ...[
-              _CoachNudgeCard(
-                message: nudge,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CoachScreen()),
+            // -- Tappable stats (now interactive) --
+            Row(
+              children: [
+                Expanded(
+                  child: StatCard(
+                    label: 'Active min',
+                    value: provider.activeMinutesThisWeek,
+                    unit: 'min',
+                    icon: Icons.bolt,
+                    accent: Ah.info,
+                    onTap: () => showActiveMinutesInsight(context, provider),
+                  ),
                 ),
-              ),
-              const SizedBox(height: Ah.s16),
-            ],
-
-            // -- Today's session --
-            _SessionCard(
-              onStart: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const WorkoutScreen()),
-              ),
-              sessionsThisWeek: provider.activitySessionsThisWeek,
-              missed: provider.missedPlannedSessionsThisWeek,
+                const SizedBox(width: Ah.s12),
+                Expanded(
+                  child: StatCard(
+                    label: 'Sessions',
+                    value: provider.activitySessionsThisWeek,
+                    unit: 'sessions',
+                    icon: Icons.event_available,
+                    accent: Ah.warning,
+                    onTap: () => showSessionsInsight(context, provider),
+                  ),
+                ),
+                const SizedBox(width: Ah.s12),
+                Expanded(
+                  child: StatCard(
+                    label: 'Star points',
+                    value: provider.starPoints,
+                    unit: 'points',
+                    icon: Icons.star,
+                    accent: Ah.accent,
+                    onTap: () => showStarPointsInsight(context, provider),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: Ah.s24),
 
@@ -127,10 +166,9 @@ class TodayScreen extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text("Today's loops", style: textTheme.titleLarge),
-                ),
+                    child: Text("Today's loops", style: textTheme.titleLarge)),
                 TextButton.icon(
-                  onPressed: () => _addLoop(context),
+                  onPressed: _addLoop,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('New loop'),
                 ),
@@ -138,7 +176,7 @@ class TodayScreen extends StatelessWidget {
             ),
             const SizedBox(height: Ah.s8),
             if (habits.isEmpty)
-              _EmptyState(onAdd: () => _addLoop(context))
+              _EmptyState(onAdd: _addLoop)
             else
               ..._sortedHabits(provider).map(
                 (habit) => HabitTile(
@@ -167,7 +205,28 @@ class TodayScreen extends StatelessWidget {
     );
   }
 
-  /// Completed loops sink to the bottom — celebrated, not crossed out.
+  /// Persona-aware one-liner: what to do + where they're lacking.
+  String _focusSummary(HabitProvider p) {
+    final remaining = p.habits.length - p.completedTodayCount;
+    final missed = p.missedPlannedSessionsThisWeek;
+    final path = (p.selectedPath ?? '').toLowerCase();
+
+    if (p.habits.isEmpty) {
+      return 'Design your first loop to get your day moving.';
+    }
+    if (remaining > 0) {
+      final extra = (path.contains('remote') || path.contains('office'))
+          ? ' A short walk resets posture and focus.'
+          : '';
+      return 'Close $remaining loop${remaining == 1 ? '' : 's'} today.$extra';
+    }
+    if (missed > 0) {
+      return 'Loops done. $missed session${missed == 1 ? '' : 's'} left this '
+          'week — fit one in to stay on target.';
+    }
+    return "You're on track today and for the week. Keep it gentle and fuel well.";
+  }
+
   List<Habit> _sortedHabits(HabitProvider provider) {
     final habits = [...provider.habits];
     bool done(Habit h) {
@@ -179,125 +238,114 @@ class TodayScreen extends StatelessWidget {
       return provider.isCompletedToday(h.id!);
     }
 
-    habits.sort((a, b) {
-      final aDone = done(a) ? 1 : 0;
-      final bDone = done(b) ? 1 : 0;
-      return aDone.compareTo(bDone);
-    });
+    habits.sort((a, b) => (done(a) ? 1 : 0).compareTo(done(b) ? 1 : 0));
     return habits;
   }
-
-  String? _coachNudge(HabitProvider provider) {
-    if (!provider.hasCheckedInToday) {
-      return 'Quick check-in with your coach — 10 seconds, sets up your day.';
-    }
-    final soreness = provider.todayCheckIn['soreness'];
-    if (soreness == 'High') {
-      return 'Recovery mode today: mobility, easy walking, hydration.';
-    }
-    final remaining = provider.habits.length - provider.completedTodayCount;
-    if (remaining == 1) {
-      return 'One loop left to close the ring. Small and done beats perfect.';
-    }
-    return null;
-  }
 }
 
-class _CoachNudgeCard extends StatelessWidget {
-  final String message;
-  final VoidCallback onTap;
+class _FocusBanner extends StatelessWidget {
+  final String persona;
+  final String summary;
+  final VoidCallback onLog;
+  final VoidCallback onSession;
+  final VoidCallback onFuel;
 
-  const _CoachNudgeCard({required this.message, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(Ah.rLg),
-        child: Padding(
-          padding: const EdgeInsets.all(Ah.s16),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  gradient: Ah.brandGradient,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.psychology_alt,
-                    color: Ah.onAccent, size: 20),
-              ),
-              const SizedBox(width: Ah.s12),
-              Expanded(
-                child: Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Ah.textTertiary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SessionCard extends StatelessWidget {
-  final VoidCallback onStart;
-  final int sessionsThisWeek;
-  final int missed;
-
-  const _SessionCard({
-    required this.onStart,
-    required this.sessionsThisWeek,
-    required this.missed,
+  const _FocusBanner({
+    required this.persona,
+    required this.summary,
+    required this.onLog,
+    required this.onSession,
+    required this.onFuel,
   });
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Ah.s16),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Ah.tint(Ah.accent),
-                borderRadius: BorderRadius.circular(Ah.rMd),
+    return Container(
+      padding: const EdgeInsets.all(Ah.gutter),
+      decoration: BoxDecoration(
+        gradient: Ah.brandGradient,
+        borderRadius: BorderRadius.circular(Ah.rXl),
+        boxShadow: Ah.accentGlow(opacity: 0.22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.bolt, color: Ah.onAccent, size: 18),
+              const SizedBox(width: 6),
+              Text("TODAY'S FOCUS",
+                  style: textTheme.labelSmall?.copyWith(
+                    color: Ah.onAccent,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w700,
+                  )),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: Ah.s8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Ah.onAccent.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(Ah.rSm),
+                ),
+                child: Text(persona,
+                    style: textTheme.labelSmall?.copyWith(color: Ah.onAccent)),
               ),
-              child: const Icon(Icons.play_arrow, color: Ah.accent),
+            ],
+          ),
+          const SizedBox(height: Ah.s12),
+          Text(summary,
+              style: textTheme.titleLarge
+                  ?.copyWith(color: Ah.onAccent, height: 1.3)),
+          const SizedBox(height: Ah.s16),
+          Row(
+            children: [
+              _FocusAction(icon: Icons.add, label: 'Log', onTap: onLog),
+              const SizedBox(width: Ah.s8),
+              _FocusAction(
+                  icon: Icons.play_arrow, label: 'Session', onTap: onSession),
+              const SizedBox(width: Ah.s8),
+              _FocusAction(
+                  icon: Icons.restaurant, label: 'Fuel', onTap: onFuel),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FocusAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _FocusAction(
+      {required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Material(
+        color: Ah.onAccent.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(Ah.rMd),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Ah.rMd),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: Ah.s12),
+            child: Column(
+              children: [
+                Icon(icon, color: Ah.onAccent, size: 20),
+                const SizedBox(height: 4),
+                Text(label,
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelMedium
+                        ?.copyWith(color: Ah.onAccent)),
+              ],
             ),
-            const SizedBox(width: Ah.s12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Today's session", style: textTheme.titleMedium),
-                  const SizedBox(height: 2),
-                  Text(
-                    missed == 0
-                        ? '$sessionsThisWeek session${sessionsThisWeek == 1 ? '' : 's'} done this week — on track'
-                        : '$missed more session${missed == 1 ? '' : 's'} to hit this week',
-                    style: textTheme.labelMedium,
-                  ),
-                ],
-              ),
-            ),
-            FilledButton(
-              onPressed: onStart,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 44),
-                padding: const EdgeInsets.symmetric(horizontal: Ah.s16),
-              ),
-              child: const Text('Start'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -326,11 +374,8 @@ class _EmptyState extends StatelessWidget {
               child: const Icon(Icons.route, color: Ah.onAccent, size: 32),
             ),
             const SizedBox(height: Ah.s16),
-            Text(
-              'Design your first loop',
-              textAlign: TextAlign.center,
-              style: textTheme.titleLarge,
-            ),
+            Text('Design your first loop',
+                textAlign: TextAlign.center, style: textTheme.titleLarge),
             const SizedBox(height: Ah.s8),
             Text(
               'An anchor, a tiny action, a fallback for busy days, and a celebration. That\'s a loop.',

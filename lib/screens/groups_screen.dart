@@ -50,51 +50,23 @@ class GroupsScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(
             Ah.gutter, Ah.s8, Ah.gutter, Ah.s48 + Ah.s32),
         children: [
-          // -- One honest locked card, styled with intent --
-          Container(
-            padding: const EdgeInsets.all(Ah.s16),
-            decoration: BoxDecoration(
-              color: Ah.surface2,
-              borderRadius: BorderRadius.circular(Ah.rLg),
-              border: Border.all(color: Ah.info.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Ah.tint(Ah.info),
-                    borderRadius: BorderRadius.circular(Ah.rMd),
-                  ),
-                  child:
-                      const Icon(Icons.lock_outline, color: Ah.info, size: 22),
-                ),
-                const SizedBox(width: Ah.s12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Live matching arrives with accounts',
-                          style: textTheme.titleSmall),
-                      const SizedBox(height: 2),
-                      Text(
-                        profile == null
-                            ? 'Sessions, RSVPs, and chat are coming. Add your area in Profile to be ready.'
-                            : 'Sessions, RSVPs, and group chat are coming for ${profile.areaName}.',
-                        style: textTheme.labelMedium?.copyWith(height: 1.35),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          // -- Opt-in: one simple switch --
+          _OptInCard(
+            optedIn: provider.communityOptIn,
+            area: profile?.areaName,
+            onChanged: (v) {
+              provider.setCommunityOptIn(v);
+              if (v) _showOptInDialog(context);
+            },
           ),
           const SizedBox(height: Ah.s24),
 
-          Text('Your groups', style: textTheme.titleLarge),
-          const SizedBox(height: Ah.s8),
-          ...groups.map((group) => _GroupCard(group: group)),
+          if (provider.communityOptIn) ...[
+            Text('Your groups', style: textTheme.titleLarge),
+            const SizedBox(height: Ah.s8),
+            ...groups.map((group) => _GroupCard(group: group)),
+          ] else
+            _OptedOutHint(textTheme: textTheme),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -113,6 +85,125 @@ class GroupsScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       builder: (_) => const _CreateGroupSheet(),
+    );
+  }
+
+  void _showOptInDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("You're in the community"),
+        content: const Text(
+          'People nearby with similar interests can now find your group and ask to join or chat. '
+          'Only your approximate area is shared — never your exact location. '
+          'You can opt out or silence notifications any time from Settings.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OptInCard extends StatelessWidget {
+  final bool optedIn;
+  final String? area;
+  final ValueChanged<bool> onChanged;
+
+  const _OptInCard({
+    required this.optedIn,
+    required this.area,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(Ah.s16),
+      decoration: BoxDecoration(
+        gradient: optedIn ? Ah.brandGradient : null,
+        color: optedIn ? null : Ah.surface2,
+        borderRadius: BorderRadius.circular(Ah.rLg),
+        border: optedIn ? null : Border.all(color: Ah.hairline),
+      ),
+      child: Row(
+        children: [
+          Icon(optedIn ? Icons.groups : Icons.groups_outlined,
+              color: optedIn ? Ah.onAccent : Ah.textSecondary, size: 28),
+          const SizedBox(width: Ah.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  optedIn ? 'Community is on' : 'Join the community',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: optedIn ? Ah.onAccent : Ah.textPrimary,
+                  ),
+                ),
+                Text(
+                  optedIn
+                      ? 'Visible in ${area ?? "your area"} · approximate only'
+                      : 'Find like-minded people nearby to train with',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: optedIn
+                        ? Ah.onAccent.withValues(alpha: 0.8)
+                        : Ah.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: optedIn,
+            onChanged: onChanged,
+            activeTrackColor: Ah.onAccent.withValues(alpha: 0.5),
+            thumbColor: WidgetStatePropertyAll(
+                optedIn ? Ah.onAccent : Ah.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OptedOutHint extends StatelessWidget {
+  final TextTheme textTheme;
+  const _OptedOutHint({required this.textTheme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Ah.s24),
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Ah.tint(Ah.info),
+                borderRadius: BorderRadius.circular(Ah.rLg),
+              ),
+              child:
+                  const Icon(Icons.groups_outlined, color: Ah.info, size: 28),
+            ),
+            const SizedBox(height: Ah.s12),
+            Text('Community is off', style: textTheme.titleMedium),
+            const SizedBox(height: Ah.s4),
+            Text(
+              'Turn it on to discover local groups for your sports and connect with people nearby. You stay in control — opt out any time.',
+              textAlign: TextAlign.center,
+              style: textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

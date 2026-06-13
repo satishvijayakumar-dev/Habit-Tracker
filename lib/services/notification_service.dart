@@ -117,6 +117,50 @@ class NotificationService {
     }
   }
 
+  /// Notification id range reserved for user-set daily reminders, so they
+  /// never collide with per-habit reminders (which use the habit's id).
+  static const int _reminderIdBase = 900000;
+
+  /// Replaces all scheduled daily reminders with [minutesSinceMidnight].
+  Future<void> syncDailyReminders(List<int> minutesSinceMidnight) async {
+    try {
+      await init();
+      if (!_initialized) return;
+      // Clear the reserved range, then reschedule.
+      for (var i = 0; i < 24; i++) {
+        await _plugin.cancel(_reminderIdBase + i);
+      }
+      if (await requestPermissions() == false) return;
+
+      for (var i = 0; i < minutesSinceMidnight.length && i < 24; i++) {
+        final mins = minutesSinceMidnight[i];
+        final scheduled = _nextInstanceOfTime(mins ~/ 60, mins % 60);
+        await _plugin.zonedSchedule(
+          _reminderIdBase + i,
+          'ActivHealth',
+          'Time to move — your coach has today\'s focus ready.',
+          scheduled,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'activhealth_reminders',
+              'Daily Reminders',
+              channelDescription: 'Daily reminders you set in ActivHealth',
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+            iOS: DarwinNotificationDetails(),
+          ),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.time,
+        );
+      }
+    } catch (e) {
+      debugPrint('NotificationService.syncDailyReminders failed: $e');
+    }
+  }
+
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
     var scheduled = tz.TZDateTime(

@@ -51,14 +51,25 @@ void main() {
     await tester.tap(find.text('Start my first loops'));
     await settle(tester);
 
-    // ---- Today: greeting + ring at the top ----
+    // ---- Today ----
     expect(provider.habits.length, 3);
-    expect(find.textContaining('Sam.'), findsOneWidget);
     expect(find.byType(MomentumRing), findsOneWidget);
 
-    // The loops sit below the fold in the lazy ListView — scroll them in.
-    await tester.drag(find.byType(MomentumRing), const Offset(0, -300));
-    await settle(tester);
+    // The coach greets the user in a pop-up on open — dismiss it first.
+    if (find.text('Maybe later').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Maybe later'));
+      await settle(tester);
+    }
+
+    // The loops sit below the fold in the lazy ListView — scroll (from a
+    // fixed screen point, so it works even as widgets scroll off) until all
+    // three tiles have built.
+    for (var i = 0;
+        i < 10 && find.byType(HabitTile).evaluate().length < 3;
+        i++) {
+      await tester.dragFrom(const Offset(200, 400), const Offset(0, -240));
+      await settle(tester);
+    }
     expect(find.byType(HabitTile), findsNWidgets(3));
 
     // ---- 1-tap check-in fires a celebration ----

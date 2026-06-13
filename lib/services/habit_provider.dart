@@ -55,6 +55,9 @@ class HabitProvider extends ChangeNotifier {
     _selectedPath = await _db.getSetting('selected_path');
     _userName = await _db.getSetting('user_name') ?? '';
     _isPro = (await _db.getSetting('pro_active')) == '1';
+    _communityOptIn = (await _db.getSetting('community_opt_in')) == '1';
+    _reminderMinutes =
+        _parseReminders(await _db.getSetting('reminder_minutes'));
     _todayCheckIn = _parseCheckIn(
       await _db.getSetting('checkin_${_settingDayKey(DateTime.now())}'),
     );
@@ -267,6 +270,154 @@ class HabitProvider extends ChangeNotifier {
     return 4;
   }
 
+  // -- AI-recommended minutes per activity (the coach default) --
+
+  /// Base session length (minutes) the coach suggests for each activity,
+  /// scaled by the user's activity level. The user can always override.
+  int recommendedMinutesFor(String activityType) {
+    const base = {
+      'walking': 30,
+      'running': 30,
+      'gym': 45,
+      'badminton': 45,
+      'tennis': 60,
+      'pickleball': 45,
+      'padel': 60,
+      'squash': 40,
+      'football': 60,
+      '5-a-side football': 60,
+      'stretching': 15,
+      'cycling': 40,
+    };
+    final key = activityType.toLowerCase();
+    var minutes = base[key] ?? 30;
+
+    final level = _profile?.activityLevel.toLowerCase() ?? '';
+    final factor = level.contains('active')
+        ? 1.2
+        : (level.contains('getting') || level.contains('new'))
+            ? 0.8
+            : 1.0;
+    // Office / remote personas benefit from a touch more daily walking.
+    final path = (_selectedPath ?? '').toLowerCase();
+    if (key == 'walking' &&
+        (path.contains('office') || path.contains('remote'))) {
+      minutes += 10;
+    }
+    return ((minutes * factor) / 5).round() * 5; // nearest 5 min
+  }
+
+  // -- Scientific energy targets (Mifflin–St Jeor BMR → TDEE) --
+
+  bool get hasEnergyTargets => _profile?.isComplete ?? false;
+
+  /// Basal Metabolic Rate (kcal/day). Null until the profile is complete.
+  int? get bmr {
+    final p = _profile;
+    if (p == null || !p.isComplete) return null;
+    final base = 10 * p.weightKg + 6.25 * p.heightCm - 5 * p.age;
+    final sexOffset = switch (p.sex.toLowerCase()) {
+      'male' => 5.0,
+      'female' => -161.0,
+      _ => -78.0, // average when unspecified
+    };
+    return (base + sexOffset).round();
+  }
+
+  double get _activityFactor {
+    final level = _profile?.activityLevel.toLowerCase() ?? '';
+    if (level.contains('active')) return 1.725;
+    if (level.contains('some')) return 1.55;
+    return 1.375; // getting started / light
+  }
+
+  /// Total Daily Energy Expenditure (kcal/day) — maintenance calories.
+  int? get tdee {
+    final b = bmr;
+    if (b == null) return null;
+    return (b * _activityFactor).round();
+  }
+
+  /// Recommended daily calorie INTAKE, adjusted for the user's goal.
+  int? get dailyIntakeTarget {
+    final t = tdee;
+    if (t == null) return null;
+    final goal = _profile?.fitnessGoal.toLowerCase() ?? '';
+    if (goal.contains('lose')) return t - 500; // ~0.45 kg/week deficit
+    if (goal.contains('strength') || goal.contains('gain')) return t + 250;
+    return t;
+  }
+
+  /// Recommended calories to BURN through activity per day, derived from the
+  /// weekly active-minutes target at a moderate effort.
+  int? get dailyBurnTarget {
+    final p = _profile;
+    if (p == null || !p.isComplete) return null;
+    final dailyMinutes = weeklyMinutesTarget / 7.0;
+    const moderateMet = 5.5;
+    final kcalPerMin = moderateMet * 3.5 * p.weightKg / 200.0;
+    return (kcalPerMin * dailyMinutes).round();
+  }
+
+  int? get weeklyBurnTarget {
+    final d = dailyBurnTarget;
+    return d == null ? null : d * 7;
+  }
+
+  // -- Star points breakdown (how it was earned) --
+
+  List<({String label, int points})> get starPointsBreakdown => [
+        (
+          label: 'Active minutes ($activeMinutesThisWeek min)',
+          points: activeMinutesThisWeek ~/ 10
+        ),
+        (
+          label: 'Sessions logged ($activitySessionsThisWeek)',
+          points: activitySessionsThisWeek * 5
+        ),
+        (
+          label: 'Loops protected today ($completedTodayCount)',
+          points: completedTodayCount * 3
+        ),
+        (label: 'Profile complete', points: hasProfile ? 20 : 0),
+      ];
+
+  // -- Community opt-in (local pref until accounts land) --
+
+  bool _communityOptIn = false;
+  bool get communityOptIn => _communityOptIn;
+
+  Future<void> setCommunityOptIn(bool value) async {
+    _communityOptIn = value;
+    await _db.setSetting('community_opt_in', value ? '1' : '0');
+    notifyListeners();
+  }
+
+  // -- Reminders (user-set daily prompts) --
+
+  List<int> _reminderMinutes = []; // minutes since midnight, sorted
+  List<int> get reminderMinutes => List.unmodifiable(_reminderMinutes);
+
+  Future<void> addReminder(int hour, int minute) async {
+    final mins = hour * 60 + minute;
+    if (_reminderMinutes.contains(mins)) return;
+    _reminderMinutes = [..._reminderMinutes, mins]..sort();
+    await _persistReminders();
+    notifyListeners();
+  }
+
+  Future<void> removeReminder(int minutesSinceMidnight) async {
+    _reminderMinutes =
+        _reminderMinutes.where((m) => m != minutesSinceMidnight).toList();
+    await _persistReminders();
+    notifyListeners();
+  }
+
+  Future<void> _persistReminders() async {
+    await _db.setSetting('reminder_minutes', _reminderMinutes.join(','));
+    await _notif.syncDailyReminders(_reminderMinutes);
+  }
+
   // -- Local groups --
 
   Future<void> addLocalGroup(LocalGroup group) async {
@@ -339,6 +490,16 @@ class HabitProvider extends ChangeNotifier {
 
   String _settingDayKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  List<int> _parseReminders(String? raw) {
+    if (raw == null || raw.isEmpty) return [];
+    return raw
+        .split(',')
+        .map((s) => int.tryParse(s.trim()))
+        .whereType<int>()
+        .toList()
+      ..sort();
+  }
 
   Map<String, String> _parseCheckIn(String? raw) {
     if (raw == null || raw.isEmpty) return {};

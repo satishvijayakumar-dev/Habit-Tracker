@@ -5,12 +5,12 @@ import 'package:provider/provider.dart';
 import '../services/habit_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/habit_style.dart';
+import '../widgets/insights.dart';
 import 'paywall_screen.dart';
 import 'profile_screen.dart';
-import 'share_screen.dart';
+import 'settings_screen.dart';
 
-/// Progress, body, streaks, profile, and settings — everything about
-/// the user, in one place.
+/// Progress + body + energy + profile — everything about the user.
 class YouScreen extends StatelessWidget {
   const YouScreen({super.key});
 
@@ -34,24 +34,64 @@ class YouScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          provider.userName.isEmpty ? 'You' : provider.userName,
-        ),
+        title: Text(provider.userName.isEmpty ? 'You' : provider.userName),
         actions: [
           IconButton(
-            tooltip: 'Edit profile',
-            icon: const Icon(Icons.manage_accounts_outlined),
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
             ),
           ),
         ],
       ),
       body: ListView(
-        padding:
-            const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s32),
+        padding: const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s32),
         children: [
-          // -- This week, as bars --
+          // -- Scientific energy targets --
+          _EnergyCard(provider: provider),
+          const SizedBox(height: Ah.s16),
+
+          // -- Tappable stats --
+          Row(
+            children: [
+              Expanded(
+                child: StatCard(
+                  label: 'Active min',
+                  value: provider.activeMinutesThisWeek,
+                  unit: 'min',
+                  icon: Icons.bolt,
+                  accent: Ah.info,
+                  onTap: () => showActiveMinutesInsight(context, provider),
+                ),
+              ),
+              const SizedBox(width: Ah.s12),
+              Expanded(
+                child: StatCard(
+                  label: 'Sessions',
+                  value: provider.activitySessionsThisWeek,
+                  unit: 'sessions',
+                  icon: Icons.event_available,
+                  accent: Ah.warning,
+                  onTap: () => showSessionsInsight(context, provider),
+                ),
+              ),
+              const SizedBox(width: Ah.s12),
+              Expanded(
+                child: StatCard(
+                  label: 'Star points',
+                  value: provider.starPoints,
+                  unit: 'points',
+                  icon: Icons.star,
+                  accent: Ah.accent,
+                  onTap: () => showStarPointsInsight(context, provider),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Ah.s24),
+
+          // -- Weekly bars --
           Card(
             child: Padding(
               padding: const EdgeInsets.all(Ah.s16),
@@ -65,51 +105,9 @@ class YouScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: Ah.s12),
-
-          // -- Stat tiles --
-          Row(
-            children: [
-              Expanded(
-                child: _StatTile(
-                  label: 'Active min',
-                  value: provider.activeMinutesThisWeek,
-                  color: Ah.info,
-                ),
-              ),
-              const SizedBox(width: Ah.s12),
-              Expanded(
-                child: _StatTile(
-                  label: 'Sessions',
-                  value: provider.activitySessionsThisWeek,
-                  color: Ah.warning,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Ah.s12),
-          Row(
-            children: [
-              Expanded(
-                child: _StatTile(
-                  label: 'Calories est.',
-                  value: provider.estimatedCaloriesThisWeek,
-                  color: Ah.mint,
-                ),
-              ),
-              const SizedBox(width: Ah.s12),
-              Expanded(
-                child: _StatTile(
-                  label: 'Star points',
-                  value: provider.starPoints,
-                  color: Ah.accent,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: Ah.s24),
 
-          // -- Streaks with 14-day heat strips --
+          // -- Streaks --
           if (sortedHabits.isNotEmpty) ...[
             Text('Loop streaks', style: textTheme.titleLarge),
             const SizedBox(height: Ah.s12),
@@ -126,8 +124,7 @@ class YouScreen extends StatelessWidget {
                             const SizedBox(width: Ah.s12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(h.name,
                                       maxLines: 1,
@@ -153,8 +150,7 @@ class YouScreen extends StatelessWidget {
                                       : '${provider.currentStreak(h.id!)}',
                                   style: textTheme.headlineSmall,
                                 ),
-                                Text('day streak',
-                                    style: textTheme.labelSmall),
+                                Text('day streak', style: textTheme.labelSmall),
                               ],
                             ),
                           ],
@@ -191,41 +187,25 @@ class YouScreen extends StatelessWidget {
             const SizedBox(height: Ah.s24),
           ],
 
-          // -- Pro --
           _ProCard(isPro: provider.isPro),
           const SizedBox(height: Ah.s24),
 
-          // -- More --
           Text('More', style: textTheme.titleLarge),
           const SizedBox(height: Ah.s12),
           Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.favorite_outline),
-                  title: const Text('Invite a friend'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ShareScreen()),
-                  ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.copy_outlined),
-                  title: const Text('Export data as CSV'),
-                  subtitle: const Text('Copies to clipboard'),
-                  onTap: () async {
-                    final csv = provider.exportAsCsv();
-                    await Clipboard.setData(ClipboardData(text: csv));
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('CSV copied to clipboard')),
-                      );
-                    }
-                  },
-                ),
-              ],
+            child: ListTile(
+              leading: const Icon(Icons.copy_outlined),
+              title: const Text('Export data as CSV'),
+              subtitle: const Text('Copies to clipboard'),
+              onTap: () async {
+                final csv = provider.exportAsCsv();
+                await Clipboard.setData(ClipboardData(text: csv));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('CSV copied to clipboard')),
+                  );
+                }
+              },
             ),
           ),
         ],
@@ -233,28 +213,208 @@ class YouScreen extends StatelessWidget {
     );
   }
 
-  /// Minutes per weekday (Mon..Sun) for the current week.
   List<int> _minutesByWeekday(HabitProvider provider) {
     final minutes = List<int>.filled(7, 0);
     for (final activity in provider.activitiesThisWeek) {
-      final weekday = activity.dayKey.weekday; // 1=Mon..7=Sun
-      minutes[weekday - 1] += activity.durationMinutes;
+      minutes[activity.dayKey.weekday - 1] += activity.durationMinutes;
     }
     return minutes;
   }
 }
 
+/// Scientific calorie targets (Mifflin–St Jeor → TDEE → goal-adjusted).
+class _EnergyCard extends StatelessWidget {
+  final HabitProvider provider;
+  const _EnergyCard({required this.provider});
+
+  void _explain(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('How this is calculated',
+                style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: Ah.s12),
+            Text(
+              'We use the Mifflin–St Jeor equation for your Basal Metabolic Rate '
+              '(BMR ${provider.bmr} kcal) — the energy you burn at rest. '
+              'Multiplying by your activity level gives your Total Daily Energy '
+              'Expenditure (TDEE ${provider.tdee} kcal) — maintenance calories.\n\n'
+              'Your intake target adjusts TDEE for your goal (a ~500 kcal deficit '
+              'for weight loss, a small surplus for strength). Your burn target is '
+              'the activity calories that match your weekly movement goal.\n\n'
+              'These are evidence-based estimates, not medical or clinical advice.',
+              style: Theme.of(ctx)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Ah.textSecondary, height: 1.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final intake = provider.dailyIntakeTarget;
+    final burn = provider.dailyBurnTarget;
+
+    if (intake == null || burn == null) {
+      return Card(
+        child: ListTile(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Ah.tint(Ah.mint),
+              borderRadius: BorderRadius.circular(Ah.rSm),
+            ),
+            child: const Icon(Icons.local_fire_department, color: Ah.mint),
+          ),
+          title: const Text('Get your calorie targets'),
+          subtitle:
+              const Text('Complete your profile (age, sex, height, weight).'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(Ah.gutter),
+      decoration: BoxDecoration(
+        color: Ah.surface1,
+        borderRadius: BorderRadius.circular(Ah.rXl),
+        border: Border.all(color: Ah.mint.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Energy targets', style: textTheme.titleMedium),
+              const Spacer(),
+              InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  _explain(context);
+                },
+                borderRadius: BorderRadius.circular(Ah.rSm),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.science_outlined,
+                          size: 14, color: Ah.textSecondary),
+                      const SizedBox(width: 4),
+                      Text('How?', style: textTheme.labelSmall),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Ah.s16),
+          Row(
+            children: [
+              Expanded(
+                child: _EnergyStat(
+                  label: 'Eat / day',
+                  value: intake,
+                  icon: Icons.restaurant,
+                  color: Ah.mint,
+                ),
+              ),
+              const SizedBox(width: Ah.s12),
+              Expanded(
+                child: _EnergyStat(
+                  label: 'Burn / day',
+                  value: burn,
+                  icon: Icons.local_fire_department,
+                  color: Ah.warning,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Ah.s12),
+          Text(
+            'Maintenance (TDEE) ≈ ${provider.tdee} kcal · burned this week '
+            '≈ ${provider.estimatedCaloriesThisWeek} kcal',
+            style: textTheme.labelSmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EnergyStat extends StatelessWidget {
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+
+  const _EnergyStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(Ah.s12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(Ah.rLg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(label, style: textTheme.labelMedium),
+            ],
+          ),
+          const SizedBox(height: Ah.s8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text('$value',
+                  style: textTheme.headlineMedium?.copyWith(color: color)),
+              const SizedBox(width: 4),
+              Text('kcal', style: textTheme.labelSmall),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _WeeklyBars extends StatelessWidget {
   final List<int> minutesByWeekday;
-
   const _WeeklyBars({required this.minutesByWeekday});
 
   static const _labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   @override
   Widget build(BuildContext context) {
-    final maxMinutes =
-        minutesByWeekday.fold<int>(0, (m, v) => v > m ? v : m);
+    final maxMinutes = minutesByWeekday.fold<int>(0, (m, v) => v > m ? v : m);
     final todayIndex = DateTime.now().weekday - 1;
     final reduceMotion = MediaQuery.of(context).disableAnimations;
 
@@ -295,8 +455,7 @@ class _WeeklyBars extends StatelessWidget {
                   _labels[i],
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: isToday ? Ah.accent : Ah.textTertiary,
-                        fontWeight:
-                            isToday ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
                       ),
                 ),
               ],
@@ -308,63 +467,9 @@ class _WeeklyBars extends StatelessWidget {
   }
 }
 
-/// Stat tile with a count-up number.
-class _StatTile extends StatelessWidget {
-  final String label;
-  final int value;
-  final Color color;
-
-  const _StatTile({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Ah.s16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(color: color, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                Text(label, style: Theme.of(context).textTheme.labelMedium),
-              ],
-            ),
-            const SizedBox(height: Ah.s8),
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: value.toDouble()),
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 600),
-              curve: Curves.easeOutCubic,
-              builder: (context, v, _) => Text(
-                '${v.round()}',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 14-day completion heat strip (GitHub-style, graded by recency).
 class _HeatStrip extends StatelessWidget {
   final Set<DateTime> completions;
   final Color color;
-
   const _HeatStrip({required this.completions, required this.color});
 
   @override
@@ -392,7 +497,6 @@ class _HeatStrip extends StatelessWidget {
 
 class _ProCard extends StatelessWidget {
   final bool isPro;
-
   const _ProCard({required this.isPro});
 
   @override
@@ -403,7 +507,8 @@ class _ProCard extends StatelessWidget {
         gradient: isPro ? null : Ah.brandGradient,
         color: isPro ? Ah.surface1 : null,
         borderRadius: BorderRadius.circular(Ah.rLg),
-        border: isPro ? Border.all(color: Ah.mint.withValues(alpha: 0.4)) : null,
+        border:
+            isPro ? Border.all(color: Ah.mint.withValues(alpha: 0.4)) : null,
       ),
       child: Material(
         color: Colors.transparent,
