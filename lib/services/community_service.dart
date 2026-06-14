@@ -59,6 +59,31 @@ class CommunityService {
 
   Future<void> signOut() => _db.auth.signOut();
 
+  // -- AI coach (server-side Claude Haiku proxy) --
+  /// Returns a clever, adaptive coach reply, or null to fall back to the
+  /// on-device rule-based coach. Requires sign-in (the function is JWT-gated)
+  /// and Supabase to be initialised; any failure degrades to null.
+  Future<String?> coachReply(
+    String message,
+    Map<String, dynamic> context,
+  ) async {
+    try {
+      if (!isSignedIn) return null;
+      final res = await _db.functions.invoke(
+        'coach-chat',
+        body: {'message': message, 'context': context},
+      );
+      final data = res.data;
+      if (data is Map && data['reply'] is String) {
+        final reply = (data['reply'] as String).trim();
+        return reply.isEmpty ? null : reply;
+      }
+      return null; // {fallback: true} or unexpected shape
+    } catch (_) {
+      return null;
+    }
+  }
+
   // -- Profile --
   Future<void> upsertProfile({
     required String displayName,

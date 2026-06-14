@@ -39,7 +39,33 @@ the token, e.g. add: `Your code is {{ .Token }}`.
 4. Xcode/Codemagic: add the **Sign in with Apple** capability to the Runner
    target. (The app's Apple button calls Supabase's OAuth flow.)
 
-## 5. (Optional) Anonymous "try without signup"
+## 5. AI Coach (Claude Haiku) — set the Anthropic key
+The smart, adaptive coach (e.g. "I can only eat toast and beans, no protein
+today" → a sensible tailored reply) runs server-side in the **`coach-chat`
+edge function** (already deployed). The Anthropic key lives **only** as a
+Supabase secret — never in the app.
+
+1. Get an Anthropic API key (console.anthropic.com). **Recommended:** mint a
+   *separate* key from DittoPix's so ActivHealth's coach spend is attributable
+   on its own line — same Anthropic account/billing is fine, just a distinct key.
+2. Set it as a secret on `activhealth-prod`:
+   - Dashboard → Edge Functions → **Secrets** → add `ANTHROPIC_API_KEY` = `sk-ant-…`
+   - or CLI: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-… --project-ref lmzzfmpbnodbpozkdmbo`
+3. No redeploy needed — the function reads the secret at call time.
+
+Behaviour & safety:
+- The function is **JWT-gated** (`verify_jwt = true`): only signed-in
+  ActivHealth users can call it, so coach usage is tied to a real account
+  (no anonymous bill-running). Until a user signs in, the coach uses the
+  on-device **rule-based** brain (`CoachBrain`) — still useful, just not adaptive.
+- If `ANTHROPIC_API_KEY` is unset, or Anthropic errors/times out, the function
+  returns `{ fallback: true }` and the app silently uses `CoachBrain`. So the
+  coach **never shows an error** — it degrades gracefully.
+- Model: `claude-haiku-4-5`, `max_tokens` 500, ~$1/$5 per 1M in/out tokens —
+  a few hundredths of a penny per reply. The system prompt enforces "coaching,
+  not medical advice" and tells users to stop for chest pain / dizziness.
+
+## 6. (Optional) Anonymous "try without signup"
 Authentication → Providers → enable **Anonymous sign-ins** if you want a
 zero-friction "skip" path later. The app doesn't use it yet.
 

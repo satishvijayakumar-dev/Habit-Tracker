@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../services/coach_brain.dart';
+import '../services/community_service.dart';
 import '../services/habit_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/coach_popup.dart';
@@ -27,8 +28,10 @@ class _ChatMsg {
 
 class _CoachScreenState extends State<CoachScreen> {
   final _input = TextEditingController();
+  final _community = CommunityService();
   final List<_ChatMsg> _chat = [];
   bool _seeded = false;
+  bool _thinking = false;
 
   CoachContext _ctx(HabitProvider p) => CoachContext(
         name: p.userName,
@@ -40,16 +43,30 @@ class _CoachScreenState extends State<CoachScreen> {
         dailyStreak: p.dailyActiveStreak,
       );
 
-  void _send(HabitProvider provider) {
+  Future<void> _send(HabitProvider provider) async {
     final text = _input.text.trim();
-    if (text.isEmpty) return;
-    final reply = CoachBrain.reply(text, _ctx(provider));
+    if (text.isEmpty || _thinking) return;
+    HapticFeedback.selectionClick();
     setState(() {
       _chat.add(_ChatMsg(text, fromCoach: false));
-      _chat.add(_ChatMsg(reply, fromCoach: true));
       _input.clear();
+      _thinking = true;
     });
-    HapticFeedback.selectionClick();
+
+    // Try the smart server-side coach first; fall back to the on-device
+    // rule-based brain when offline / signed out / unconfigured.
+    final remote = await _community.coachReply(text, {
+      'name': provider.userName,
+      'persona': provider.selectedPath ?? '',
+      'goal': provider.profile?.fitnessGoal ?? '',
+      'energy': provider.todayCheckIn['energy'] ?? 'Steady',
+    });
+    final reply = remote ?? CoachBrain.reply(text, _ctx(provider));
+    if (!mounted) return;
+    setState(() {
+      _chat.add(_ChatMsg(reply, fromCoach: true));
+      _thinking = false;
+    });
   }
 
   @override
@@ -111,6 +128,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
           // -- Conversation --
           ..._chat.map((m) => _ChatBubble(msg: m)),
+          if (_thinking) const _TypingBubble(),
           const SizedBox(height: Ah.s8),
           _ChatInput(controller: _input, onSend: () => _send(provider)),
           const SizedBox(height: Ah.s8),
@@ -290,6 +308,48 @@ class _ChatBubble extends StatelessWidget {
                 color: coach ? Ah.textPrimary : Ah.onAccent,
                 height: 1.45,
               ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small "coach is typing…" placeholder shown while the AI reply is in
+/// flight. Styled like a coach bubble so the wait feels conversational.
+class _TypingBubble extends StatelessWidget {
+  const _TypingBubble();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: Ah.s8),
+        padding:
+            const EdgeInsets.symmetric(horizontal: Ah.s12, vertical: Ah.s12),
+        decoration: BoxDecoration(
+          color: Ah.surface2,
+          borderRadius: BorderRadius.circular(Ah.rLg),
+          border: Border.all(color: Ah.hairline),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(Ah.textSecondary),
+              ),
+            ),
+            const SizedBox(width: Ah.s8),
+            Text('Coach is thinking…',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Ah.textSecondary)),
+          ],
         ),
       ),
     );
