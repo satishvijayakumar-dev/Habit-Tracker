@@ -109,6 +109,23 @@ class _TodayScreenState extends State<TodayScreen> {
                 MaterialPageRoute(builder: (_) => const NutritionScreen()),
               ),
             ),
+            const SizedBox(height: Ah.s16),
+
+            // -- Daily streak + protection --
+            _DailyStreakBar(
+              streak: provider.dailyActiveStreak,
+              activeToday: provider.isActiveToday,
+              onProtect: () async {
+                await context.read<HabitProvider>().logRecoveryAction();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Streak protected with a light recovery.'),
+                    ),
+                  );
+                }
+              },
+            ),
             const SizedBox(height: Ah.s24),
 
             // -- Momentum Ring --
@@ -240,6 +257,63 @@ class _TodayScreenState extends State<TodayScreen> {
 
     habits.sort((a, b) => (done(a) ? 1 : 0).compareTo(done(b) ? 1 : 0));
     return habits;
+  }
+}
+
+class _DailyStreakBar extends StatelessWidget {
+  final int streak;
+  final bool activeToday;
+  final VoidCallback onProtect;
+
+  const _DailyStreakBar({
+    required this.streak,
+    required this.activeToday,
+    required this.onProtect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final alive = streak > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Ah.s16, vertical: Ah.s12),
+      decoration: BoxDecoration(
+        color: Ah.surface1,
+        borderRadius: BorderRadius.circular(Ah.rLg),
+        border: Border.all(
+            color: alive ? Ah.warning.withValues(alpha: 0.4) : Ah.hairline),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.local_fire_department,
+              color: alive ? Ah.warning : Ah.textTertiary, size: 24),
+          const SizedBox(width: Ah.s8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$streak-day streak', style: textTheme.titleMedium),
+                Text(
+                  activeToday
+                      ? 'Active today — nice.'
+                      : 'Do one small thing to keep it alive.',
+                  style: textTheme.labelMedium,
+                ),
+              ],
+            ),
+          ),
+          if (!activeToday)
+            OutlinedButton(
+              onPressed: onProtect,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: Ah.s12),
+              ),
+              child: const Text('Protect'),
+            ),
+        ],
+      ),
+    );
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../services/badges.dart';
 import '../services/habit_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/habit_style.dart';
@@ -89,6 +90,27 @@ class YouScreen extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: Ah.s12),
+
+          // -- Daily streak --
+          Card(
+            child: ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Ah.tint(Ah.warning),
+                  borderRadius: BorderRadius.circular(Ah.rSm),
+                ),
+                child:
+                    const Icon(Icons.local_fire_department, color: Ah.warning),
+              ),
+              title: Text('${provider.dailyActiveStreak}-day active streak'),
+              subtitle: Text(provider.isActiveToday
+                  ? 'Active today'
+                  : 'Stay active today to extend it'),
+            ),
+          ),
           const SizedBox(height: Ah.s24),
 
           // -- Weekly bars --
@@ -161,6 +183,19 @@ class YouScreen extends StatelessWidget {
                 ),
             const SizedBox(height: Ah.s16),
           ],
+
+          // -- Achievements --
+          Row(
+            children: [
+              Expanded(
+                  child: Text('Achievements', style: textTheme.titleLarge)),
+              Text('${provider.earnedBadgeCount}/${Badges.all.length}',
+                  style: textTheme.labelMedium),
+            ],
+          ),
+          const SizedBox(height: Ah.s12),
+          _BadgeGrid(statuses: provider.badgeStatuses),
+          const SizedBox(height: Ah.s24),
 
           // -- Body --
           if (profile != null) ...[
@@ -402,6 +437,80 @@ class _EnergyStat extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BadgeGrid extends StatelessWidget {
+  final List<BadgeStatus> statuses;
+  const _BadgeGrid({required this.statuses});
+
+  static const _icons = {
+    'directions_walk': Icons.directions_walk,
+    'event_available': Icons.event_available,
+    'local_fire_department': Icons.local_fire_department,
+    'fitness_center': Icons.fitness_center,
+    'donut_large': Icons.donut_large,
+    'star': Icons.star,
+    'groups': Icons.groups,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: Ah.s8,
+      runSpacing: Ah.s8,
+      children: statuses.map((s) {
+        final earned = s.earned;
+        final color = earned ? colorFor(s.def.colorName) : Ah.textTertiary;
+        return Container(
+          width:
+              (MediaQuery.of(context).size.width - Ah.gutter * 2 - Ah.s8) / 2,
+          padding: const EdgeInsets.all(Ah.s12),
+          decoration: BoxDecoration(
+            color: earned
+                ? Color.alphaBlend(color.withValues(alpha: 0.12), Ah.surface1)
+                : Ah.surface1,
+            borderRadius: BorderRadius.circular(Ah.rLg),
+            border: Border.all(
+                color: earned ? color.withValues(alpha: 0.4) : Ah.hairline),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: earned ? 0.2 : 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(_icons[s.def.iconName] ?? Icons.star,
+                    color: color, size: 18),
+              ),
+              const SizedBox(width: Ah.s8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(s.def.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: earned ? Ah.textPrimary : Ah.textSecondary,
+                            )),
+                    Text(
+                      earned ? 'Earned' : s.progress,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

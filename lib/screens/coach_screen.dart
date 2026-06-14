@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../services/coach_brain.dart';
 import '../services/habit_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/coach_popup.dart';
@@ -8,17 +10,64 @@ import 'nutrition_screen.dart';
 import 'profile_screen.dart';
 import 'workout_screen.dart';
 
-/// The coach: a greeting, a guided message (tuned to the saved check-in and
-/// real data), today's session, the week at a glance, and topics. The
-/// check-in itself now lives in the on-open pop-up, keeping this light.
-class CoachScreen extends StatelessWidget {
+/// The coach: a conversational assistant (free-text chat, rule-based today,
+/// LLM-ready) plus today's session, the week at a glance, and topics.
+class CoachScreen extends StatefulWidget {
   const CoachScreen({super.key});
+
+  @override
+  State<CoachScreen> createState() => _CoachScreenState();
+}
+
+class _ChatMsg {
+  final String text;
+  final bool fromCoach;
+  const _ChatMsg(this.text, {required this.fromCoach});
+}
+
+class _CoachScreenState extends State<CoachScreen> {
+  final _input = TextEditingController();
+  final List<_ChatMsg> _chat = [];
+  bool _seeded = false;
+
+  CoachContext _ctx(HabitProvider p) => CoachContext(
+        name: p.userName,
+        persona: p.selectedPath ?? '',
+        goal: p.profile?.fitnessGoal ?? '',
+        energy: p.todayCheckIn['energy'] ?? 'Steady',
+        missedSessions: p.missedPlannedSessionsThisWeek,
+        loopsRemaining: p.habits.length - p.completedTodayCount,
+        dailyStreak: p.dailyActiveStreak,
+      );
+
+  void _send(HabitProvider provider) {
+    final text = _input.text.trim();
+    if (text.isEmpty) return;
+    final reply = CoachBrain.reply(text, _ctx(provider));
+    setState(() {
+      _chat.add(_ChatMsg(text, fromCoach: false));
+      _chat.add(_ChatMsg(reply, fromCoach: true));
+      _input.clear();
+    });
+    HapticFeedback.selectionClick();
+  }
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<HabitProvider>();
     final profile = provider.profile;
     final textTheme = Theme.of(context).textTheme;
+
+    if (!_seeded) {
+      _chat.add(_ChatMsg(_coachLine(provider), fromCoach: true));
+      _seeded = true;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -60,26 +109,18 @@ class CoachScreen extends StatelessWidget {
           ),
           const SizedBox(height: Ah.s16),
 
-          if (profile == null) ...[
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.person_add_alt, color: Ah.accent),
-                title: const Text('Complete your profile'),
-                subtitle: const Text(
-                    'Age, body metrics, and your goal sharpen every recommendation.'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(height: Ah.s16),
-          ],
+          // -- Conversation --
+          ..._chat.map((m) => _ChatBubble(msg: m)),
+          const SizedBox(height: Ah.s8),
+          _ChatInput(controller: _input, onSend: () => _send(provider)),
+          const SizedBox(height: Ah.s8),
+          _SuggestionChips(onTap: (s) {
+            _input.text = s;
+            _send(provider);
+          }),
+          const SizedBox(height: Ah.s24),
 
-          _CoachMessage(message: _coachLine(provider)),
-          const SizedBox(height: Ah.s16),
-
-          // Today's session — one primary CTA.
+          // Today's session.
           Card(
             child: Padding(
               padding: const EdgeInsets.all(Ah.s16),
@@ -88,11 +129,9 @@ class CoachScreen extends StatelessWidget {
                 children: [
                   Text(_sessionTitle(provider), style: textTheme.titleMedium),
                   const SizedBox(height: Ah.s4),
-                  Text(
-                    _sessionDetail(provider),
-                    style:
-                        textTheme.bodyMedium?.copyWith(color: Ah.textSecondary),
-                  ),
+                  Text(_sessionDetail(provider),
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: Ah.textSecondary)),
                   const SizedBox(height: Ah.s16),
                   FilledButton.icon(
                     onPressed: () => Navigator.of(context).push(
@@ -138,7 +177,7 @@ class CoachScreen extends StatelessWidget {
                 child: const Icon(Icons.restaurant, color: Ah.mint, size: 20),
               ),
               title: const Text('Fuel'),
-              subtitle: const Text('Protein target and simple eating guidance'),
+              subtitle: const Text('Calorie & protein targets + natural foods'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const NutritionScreen()),
@@ -163,27 +202,21 @@ class CoachScreen extends StatelessWidget {
 
   String _coachLine(HabitProvider provider) {
     final name = provider.userName.isEmpty ? '' : '${provider.userName}, ';
-    final checkIn = provider.todayCheckIn;
-    final energy = checkIn['energy'] ?? 'Steady';
-    final soreness = checkIn['soreness'] ?? 'Low';
-    final mood = checkIn['mood'] ?? 'Focused';
-    final time = checkIn['time'] ?? '30 min';
-
+    final c = provider.todayCheckIn;
+    final energy = c['energy'] ?? 'Steady';
+    final soreness = c['soreness'] ?? 'Low';
+    final mood = c['mood'] ?? 'Focused';
+    final time = c['time'] ?? '30 min';
     if (soreness == 'High') {
-      return '${name}recovery mode today. Mobility, walking, hydration, and sleep protect the long game.';
+      return '${name}recovery mode today. Mobility, walking, hydration and sleep protect the long game. Ask me to adjust anything.';
     }
     if (energy == 'Low' || mood == 'Tired') {
-      return '${name}low battery noted. Your minimum effective dose is enough: $time of easy work, then stop with confidence.';
+      return '${name}low battery noted. Your minimum effective dose is enough: $time of easy work. Tell me your time or energy and I\'ll adapt.';
     }
     if (provider.missedPlannedSessionsThisWeek > 0) {
-      return '${name}you have an open session this week. No drama — make the next one count and the week still wins.';
+      return '${name}you have an open session this week. Make the next one count — ask me to make it shorter or easier if needed.';
     }
-    if ((provider.profile?.fitnessGoal ?? '')
-        .toLowerCase()
-        .contains('strength')) {
-      return '${name}strength focus confirmed. Form first, then volume — only if energy stays steady.';
-    }
-    return '${name}you\'re set for a focused session, tuned to your energy and goal.';
+    return '${name}you\'re set for a focused session. Ask me anything — time, difficulty, swaps, injuries, or food.';
   }
 
   String _sessionTitle(HabitProvider provider) {
@@ -231,49 +264,96 @@ class CoachScreen extends StatelessWidget {
   }
 }
 
-class _CoachMessage extends StatelessWidget {
-  final String message;
-  const _CoachMessage({required this.message});
+class _ChatBubble extends StatelessWidget {
+  final _ChatMsg msg;
+  const _ChatBubble({required this.msg});
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    return Container(
-      padding: const EdgeInsets.all(Ah.s16),
-      decoration: BoxDecoration(
-        color: Ah.surface2,
-        borderRadius: BorderRadius.circular(Ah.rLg),
-        border: Border.all(color: Ah.hairline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('COACH',
-              style: textTheme(context).labelSmall?.copyWith(
-                    color: Ah.accent,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.w600,
-                  )),
-          const SizedBox(height: Ah.s8),
-          TweenAnimationBuilder<double>(
-            key: ValueKey(message),
-            tween: Tween(begin: 0, end: 1),
-            duration: reduceMotion
-                ? Duration.zero
-                : const Duration(milliseconds: 700),
-            curve: Curves.easeOut,
-            builder: (context, t, _) {
-              final chars = (message.length * t).round();
-              return Text(message.substring(0, chars),
-                  style: textTheme(context).bodyLarge?.copyWith(height: 1.5));
-            },
-          ),
-        ],
+    final coach = msg.fromCoach;
+    return Align(
+      alignment: coach ? Alignment.centerLeft : Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: Ah.s8),
+        padding:
+            const EdgeInsets.symmetric(horizontal: Ah.s12, vertical: Ah.s12),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+        decoration: BoxDecoration(
+          color: coach ? Ah.surface2 : Ah.accent,
+          borderRadius: BorderRadius.circular(Ah.rLg),
+          border: coach ? Border.all(color: Ah.hairline) : null,
+        ),
+        child: Text(
+          msg.text,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: coach ? Ah.textPrimary : Ah.onAccent,
+                height: 1.45,
+              ),
+        ),
       ),
     );
   }
+}
 
-  TextTheme textTheme(BuildContext c) => Theme.of(c).textTheme;
+class _ChatInput extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onSend;
+  const _ChatInput({required this.controller, required this.onSend});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => onSend(),
+            decoration: const InputDecoration(
+              hintText: 'Ask your coach…',
+            ),
+          ),
+        ),
+        const SizedBox(width: Ah.s8),
+        IconButton.filled(
+          style: IconButton.styleFrom(
+            backgroundColor: Ah.accent,
+            foregroundColor: Ah.onAccent,
+          ),
+          onPressed: onSend,
+          icon: const Icon(Icons.send),
+        ),
+      ],
+    );
+  }
+}
+
+class _SuggestionChips extends StatelessWidget {
+  final ValueChanged<String> onTap;
+  const _SuggestionChips({required this.onTap});
+
+  static const _suggestions = [
+    'I only have 20 minutes',
+    'My knees hurt',
+    'Make it easier',
+    'What should I eat?',
+    'Plan my day',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: Ah.s8,
+      runSpacing: Ah.s8,
+      children: _suggestions
+          .map((s) => ActionChip(
+                label: Text(s),
+                onPressed: () => onTap(s),
+              ))
+          .toList(),
+    );
+  }
 }
 
 class _WeekStrip extends StatelessWidget {

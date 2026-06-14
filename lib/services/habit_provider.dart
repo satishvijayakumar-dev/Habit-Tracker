@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/activity.dart';
 import '../models/habit.dart';
 import '../models/user_profile.dart';
+import 'badges.dart';
 import 'database_service.dart';
 import 'habit_store.dart';
 import 'notification_service.dart';
@@ -381,6 +382,55 @@ class HabitProvider extends ChangeNotifier {
         ),
         (label: 'Profile complete', points: hasProfile ? 20 : 0),
       ];
+
+  // -- Daily active streak (forgiving: any health-positive action) --
+
+  /// Day-keys on which the user did *something* healthy — closed a loop or
+  /// logged any activity (incl. a recovery action). Powers the daily streak.
+  Set<DateTime> get _activeDays {
+    final days = <DateTime>{};
+    for (final set in _completions.values) {
+      days.addAll(set);
+    }
+    for (final a in _activities) {
+      days.add(a.dayKey);
+    }
+    return days;
+  }
+
+  int get dailyActiveStreak => StreakEngine.checkoffStreak(
+        completedDays: _activeDays,
+        today: DateTime.now(),
+      );
+
+  bool get isActiveToday => _activeDays.contains(_dayKey(DateTime.now()));
+
+  /// Streak protection: a small recovery action keeps the chain alive on a
+  /// day the user otherwise did nothing.
+  Future<void> logRecoveryAction() async {
+    await addActivity(ActivityLog(
+      type: 'Recovery',
+      durationMinutes: 10,
+      intensity: 'Easy',
+      notes: 'Streak protection — light recovery',
+      completedAt: DateTime.now(),
+    ));
+  }
+
+  // -- Badges / achievements --
+
+  List<BadgeStatus> get badgeStatuses => Badges.evaluate(_badgeStats);
+  int get earnedBadgeCount => Badges.earnedCount(_badgeStats);
+
+  BadgeStats get _badgeStats => BadgeStats(
+        totalActivities: _activities.length,
+        sessionsThisWeek: activitySessionsThisWeek,
+        dailyStreak: dailyActiveStreak,
+        starPoints: starPoints,
+        loggedGym: _activities.any((a) => a.type.toLowerCase().contains('gym')),
+        dayClosed: _habits.isNotEmpty && completedTodayCount >= _habits.length,
+        inCommunity: _communityOptIn,
+      );
 
   // -- Community opt-in (local pref until accounts land) --
 
