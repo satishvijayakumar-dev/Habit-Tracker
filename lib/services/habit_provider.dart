@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/activity.dart';
 import '../models/habit.dart';
 import '../models/user_profile.dart';
+import 'activity_energy.dart';
 import 'badges.dart';
 import 'database_service.dart';
 import 'habit_store.dart';
@@ -219,6 +220,17 @@ class HabitProvider extends ChangeNotifier {
         'Day 4: Lower body - hinge, lunge, calf, mobility',
       ];
     }
+    if (path.contains('run') || path.contains('walk') || goal.contains('run')) {
+      // A balanced, progressive running week: easy aerobic base, one quality
+      // (speed) session, a long run, and recovery — the classic structure,
+      // with conversational-pace guidance to keep beginners safe.
+      return const [
+        'Day 1: Easy run/walk 25-40 min · conversational pace',
+        'Day 2: Intervals 6×1 min hard / 2 min easy · warm up first',
+        'Day 3: Recovery walk + mobility · very easy effort',
+        'Day 4: Long run/walk 40-60 min · steady, hydrate well',
+      ];
+    }
     if (path.contains('office') || path.contains('remote')) {
       return const [
         'Day 1: 25-minute walk plus posture reset',
@@ -255,13 +267,12 @@ class HabitProvider extends ChangeNotifier {
   }
 
   int _estimateCalories(ActivityLog activity) {
-    final weight = _profile?.weightKg ?? 75;
-    final met = switch (activity.intensity) {
-      'Hard' => 8.0,
-      'Easy' => 3.5,
-      _ => 5.5,
-    };
-    return ((met * 3.5 * weight / 200) * activity.durationMinutes).round();
+    return ActivityEnergy.caloriesBurned(
+      type: activity.type,
+      intensity: activity.intensity,
+      minutes: activity.durationMinutes,
+      weightKg: _profile?.weightKg ?? 75,
+    );
   }
 
   int get _weeklySessionTarget {

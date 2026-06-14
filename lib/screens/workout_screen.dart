@@ -71,7 +71,64 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       reps: '20-45 min',
       safety: 'Keep conversational pace.',
       cue: 'Tall posture, relaxed shoulders.',
-      icon: Icons.directions_run,
+      icon: Icons.directions_walk,
+      category: 'running',
+      pace: '5:30-6:30 /km · easy',
+    ),
+    _Exercise(
+      name: 'Intervals',
+      group: 'Cardio',
+      sets: '1',
+      reps: '6×1 min hard / 2 min easy',
+      safety: 'Warm up 10 min first; stop if sharp pain.',
+      cue: 'Strong but smooth on the hard reps.',
+      icon: Icons.speed,
+      category: 'running',
+      pace: '4:00-4:45 /km on efforts',
+    ),
+    _Exercise(
+      name: 'Tempo Run',
+      group: 'Cardio',
+      sets: '1',
+      reps: '25-40 min',
+      safety: 'Comfortably hard — not all-out.',
+      cue: 'Settle into a steady, controlled effort.',
+      icon: Icons.trending_up,
+      category: 'running',
+      pace: '4:30-5:10 /km',
+    ),
+    _Exercise(
+      name: 'Long Run',
+      group: 'Cardio',
+      sets: '1',
+      reps: '45-75 min',
+      safety: 'Hydrate; ease off if form fades.',
+      cue: 'Relaxed and steady the whole way.',
+      icon: Icons.route,
+      category: 'running',
+      pace: '5:45-6:45 /km',
+    ),
+    _Exercise(
+      name: 'Hill Repeats',
+      group: 'Cardio',
+      sets: '1',
+      reps: '6-10 × 60-90s',
+      safety: 'Strong arm drive up; walk down to recover.',
+      cue: 'Powerful uphill, easy controlled descent.',
+      icon: Icons.terrain,
+      category: 'running',
+      pace: 'Hard effort uphill',
+    ),
+    _Exercise(
+      name: 'Recovery Run',
+      group: 'Cardio',
+      sets: '1',
+      reps: '20-35 min',
+      safety: 'Very easy — this is active recovery.',
+      cue: 'Light, bouncy steps, relaxed shoulders.',
+      icon: Icons.self_improvement,
+      category: 'running',
+      pace: '6:30-7:30 /km',
     ),
   ];
 
@@ -85,8 +142,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Session')),
       body: ListView(
-        padding:
-            const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s32),
+        padding: const EdgeInsets.fromLTRB(Ah.gutter, Ah.s8, Ah.gutter, Ah.s32),
         children: [
           _WorkoutHero(missed: missed, minutes: _minutes.round()),
           const SizedBox(height: Ah.s24),
@@ -97,8 +153,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   padding: const EdgeInsets.only(bottom: Ah.s8),
                   child: Card(
                     child: ListTile(
-                      leading: const Icon(Icons.event_note_outlined,
-                          color: Ah.info),
+                      leading:
+                          const Icon(Icons.event_note_outlined, color: Ah.info),
                       title: Text(item),
                     ),
                   ),
@@ -166,8 +222,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   ),
                   const SizedBox(height: Ah.s16),
                   FilledButton.icon(
-                    onPressed:
-                        _selected.isEmpty ? null : () => _log(context),
+                    onPressed: _selected.isEmpty ? null : () => _log(context),
                     icon: const Icon(Icons.done_all),
                     label: const Text('Log session'),
                   ),
@@ -185,10 +240,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final exercises = _selected.join(', ');
+    // Type from the selected exercises' categories so calorie burn uses the
+    // right MET (running ≫ light strength at the same duration).
+    final anyRunning = _exercises
+        .where((e) => _selected.contains(e.name))
+        .any((e) => e.category == 'running');
     await provider.addActivity(
       ActivityLog(
-        type:
-            _selected.any((name) => name.contains('Run')) ? 'Running' : 'Gym',
+        type: anyRunning ? 'Running' : 'Gym',
         durationMinutes: _minutes.round(),
         intensity: _intensity,
         notes: 'Exercises: $exercises',
@@ -258,8 +317,7 @@ class _WorkoutHero extends StatelessWidget {
             child: Center(
               child: Text(
                 '$minutes',
-                style:
-                    textTheme.headlineSmall?.copyWith(color: Ah.onAccent),
+                style: textTheme.headlineSmall?.copyWith(color: Ah.onAccent),
               ),
             ),
           ),
@@ -329,6 +387,19 @@ class _ExerciseCard extends StatelessWidget {
                         '${exercise.group} · ${exercise.sets} × ${exercise.reps}',
                         style: textTheme.labelMedium,
                       ),
+                      if (exercise.pace != null) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(Icons.timer_outlined,
+                                size: 13, color: Ah.info),
+                            const SizedBox(width: 4),
+                            Text(exercise.pace!,
+                                style: textTheme.labelSmall
+                                    ?.copyWith(color: Ah.info)),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: Ah.s4),
                       Text(
                         exercise.cue,
@@ -337,8 +408,7 @@ class _ExerciseCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         exercise.safety,
-                        style: textTheme.labelSmall
-                            ?.copyWith(color: Ah.mint),
+                        style: textTheme.labelSmall?.copyWith(color: Ah.mint),
                       ),
                     ],
                   ),
@@ -365,6 +435,13 @@ class _Exercise {
   final String cue;
   final IconData icon;
 
+  /// 'gym' or 'running' — drives which activity type the session logs as, so
+  /// calorie burn is estimated against the right MET.
+  final String category;
+
+  /// Optional pace guidance for running workouts (e.g. "5:30-6:30 /km").
+  final String? pace;
+
   const _Exercise({
     required this.name,
     required this.group,
@@ -373,5 +450,7 @@ class _Exercise {
     required this.safety,
     required this.cue,
     required this.icon,
+    this.category = 'gym',
+    this.pace,
   });
 }
