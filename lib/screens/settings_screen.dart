@@ -8,6 +8,7 @@ import 'change_persona_screen.dart';
 import 'paywall_screen.dart';
 import 'profile_screen.dart';
 import 'reminders_screen.dart';
+import 'sign_in_screen.dart';
 
 /// Standard-app settings: profile, persona, reminders, community, privacy,
 /// account, about — the home for everything that isn't a daily action.
@@ -125,33 +126,34 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            _SettingsTile(
-              icon: Icons.logout,
-              color: Ah.danger,
-              title: 'Sign out',
-              subtitle: community.isSignedIn
-                  ? 'Signed in to community'
-                  : 'Not signed in to community',
-              onTap: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                if (community.isSignedIn) {
-                  await community.signOut();
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Signed out of community')),
-                  );
-                } else {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Community sign-in arrives with the next update.')),
-                  );
-                }
-              },
-            ),
+            community.isSignedIn
+                ? _SettingsTile(
+                    icon: Icons.logout,
+                    color: Ah.danger,
+                    title: 'Sign out',
+                    subtitle: 'Signed in to community',
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await community.signOut();
+                      messenger.showSnackBar(
+                        const SnackBar(
+                            content: Text('Signed out of community')),
+                      );
+                    },
+                  )
+                : _SettingsTile(
+                    icon: Icons.login,
+                    color: Ah.mint,
+                    title: 'Sign in',
+                    subtitle: 'Join the community & unlock your smart coach',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SignInScreen()),
+                    ),
+                  ),
           ]),
           const SizedBox(height: Ah.s16),
           Center(
-            child: Text('ActivHealth · v2.0',
+            child: Text('ActivHealth · v2.1.0',
                 style: Theme.of(context).textTheme.labelSmall),
           ),
         ],

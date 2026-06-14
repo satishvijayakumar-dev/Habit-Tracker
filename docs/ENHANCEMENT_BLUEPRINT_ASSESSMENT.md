@@ -20,7 +20,7 @@ third-party). Maps to the blueprint's own Phase 1–4 roadmap.
 ## Added in this pass (Phase 1 net-new)
 | Blueprint item | What shipped |
 |---|---|
-| §4 "AI visible across the app" | ✅ **Coach chat input** — free-text → adaptive replies (`CoachBrain`), incl. session tweaks (time, pain, no-equipment, easier/harder, swap), nutrition, community, motivation, plan. Quick-suggestion chips. Rule-based now, LLM-ready. |
+| §4 "AI visible across the app" | ✅ **Coach chat input** — free-text → adaptive replies. **Now LLM-backed:** signed-in users hit the `coach-chat` Supabase edge function (Claude Haiku) for genuinely adaptive coaching (e.g. "I only have toast and beans, no protein today"); signed-out / offline / unconfigured falls back to the on-device `CoachBrain` rule engine. Quick-suggestion chips, "thinking" indicator, sign-in invite banner. |
 | §4.3 Adaptive session modification | ✅ via the coach chat intents ("I only have 20 minutes", "my knees hurt", "make it easier"…). |
 | §5 Nutrition natural-food engine | ✅ **Fuel** rebuilt: calorie + protein targets, goal selector (snack / full meal / post-workout), vegetarian toggle, natural-food suggestions (`NutritionEngine`). |
 | §6 Points → meaningful rewards | ✅ **Badges/Achievements** (`Badges`): First Step, Consistent, 7-Day Mover, Strength Starter, Loop Closer, Century, Community Member — earned logic + progress hints, shown on You. |
@@ -36,7 +36,7 @@ All new logic is pure + unit-tested (`coach_brain_test`, `nutrition_engine_test`
 |---|---|
 | Real leaderboards (individual / group / persona / consistency / comeback) | Needs a server-side, cheat-proof points ledger (design noted in `ACTIVHEALTH_REBUILD_BRIEF`). |
 | Group challenges, events + RSVP, buddy matching | Schema exists (`sessions`, `session_rsvps`); needs UI + organiser tools. |
-| LLM coach (true free-form reasoning) | `CoachBrain` is the seam; swap to a Supabase edge function calling Claude once revenue covers inference. |
+| ~~LLM coach (true free-form reasoning)~~ | ✅ **SHIPPED** — `coach-chat` edge function (Claude Haiku) on `activhealth-prod`, JWT-gated, with `CoachBrain` fallback. Founder sets `ANTHROPIC_API_KEY` secret to activate. |
 | Real-world / partner rewards, coach marketplace, corporate wellness | Commercial partnerships + payments (Stripe Connect). |
 | Meal logging → Fuel loop contribution, weekly nutrition insight | Needs a nutrition log table + UI. |
 | Wearable integration, weather/location-aware suggestions | Phase 4. |

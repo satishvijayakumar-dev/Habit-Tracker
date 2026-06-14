@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../widgets/coach_popup.dart';
 import 'nutrition_screen.dart';
 import 'profile_screen.dart';
+import 'sign_in_screen.dart';
 import 'workout_screen.dart';
 
 /// The coach: a conversational assistant (free-text chat, rule-based today,
@@ -125,6 +126,17 @@ class _CoachScreenState extends State<CoachScreen> {
             ],
           ),
           const SizedBox(height: Ah.s16),
+
+          // Invite sign-in so the adaptive (LLM) coach is reachable — when
+          // signed out the coach still works, just with on-device replies.
+          if (!_community.isSignedIn) ...[
+            _SmartCoachBanner(
+              onSignIn: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SignInScreen()),
+              ),
+            ),
+            const SizedBox(height: Ah.s16),
+          ],
 
           // -- Conversation --
           ..._chat.map((m) => _ChatBubble(msg: m)),
@@ -309,6 +321,58 @@ class _ChatBubble extends StatelessWidget {
                 height: 1.45,
               ),
         ),
+      ),
+    );
+  }
+}
+
+/// Sign-in invite shown on the Coach tab when signed out. The coach still
+/// answers on-device; signing in unlocks the smarter, adaptive (LLM) replies.
+class _SmartCoachBanner extends StatelessWidget {
+  final VoidCallback onSignIn;
+  const _SmartCoachBanner({required this.onSignIn});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(Ah.s16),
+      decoration: BoxDecoration(
+        gradient: Ah.brandGradient,
+        borderRadius: BorderRadius.circular(Ah.rLg),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome, color: Ah.onAccent, size: 22),
+          const SizedBox(width: Ah.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Unlock your smart coach',
+                    style: textTheme.titleSmall?.copyWith(color: Ah.onAccent)),
+                const SizedBox(height: 2),
+                Text(
+                  'Sign in and the coach adapts to whatever you tell it — your time, energy, injuries, even the food in your cupboard.',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: Ah.onAccent.withValues(alpha: 0.85),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: Ah.s12),
+                FilledButton(
+                  onPressed: onSignIn,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Ah.onAccent,
+                    foregroundColor: Ah.accent,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('Sign in'),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

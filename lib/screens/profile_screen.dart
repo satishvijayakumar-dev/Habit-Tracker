@@ -194,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Visible to nearby members'),
             subtitle: const Text(
-              'Uses City/Town only until secure community matching is connected.',
+              'Shares only your approximate area (~1 km) — never your exact location.',
             ),
             value: _shareApproxLocation,
             onChanged: (value) => setState(() => _shareApproxLocation = value),
