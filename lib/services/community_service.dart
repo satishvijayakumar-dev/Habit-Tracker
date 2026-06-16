@@ -27,6 +27,37 @@ class CommunityService {
   bool get isSignedIn => currentUserId != null;
   Stream<AuthState> get authChanges => _db.auth.onAuthStateChange;
 
+  /// Email of the signed-in user (null when signed out / unavailable).
+  String? get currentUserEmail {
+    try {
+      return Supabase.instance.client.auth.currentUser?.email;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Display name from the OAuth provider (Google/Apple), if any.
+  String? get currentUserName {
+    try {
+      final meta = Supabase.instance.client.auth.currentUser?.userMetadata;
+      final name = meta?['full_name'] ?? meta?['name'];
+      return name is String && name.trim().isNotEmpty ? name : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// How the user signed in — 'google', 'apple', 'email', … (null if unknown).
+  String? get currentUserProvider {
+    try {
+      final meta = Supabase.instance.client.auth.currentUser?.appMetadata;
+      final p = meta?['provider'];
+      return p is String ? p : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Email OTP sign-in (no password). A 6-digit code is emailed; complete it
   /// via [verifyEmailOtp]. Works with no third-party provider config.
   Future<void> signInWithEmail(String email) => _db.auth.signInWithOtp(
