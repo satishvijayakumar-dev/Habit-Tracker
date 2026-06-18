@@ -21,23 +21,42 @@ Authentication → Email Templates → "Magic Link" → ensure the body includes
 the token, e.g. add: `Your code is {{ .Token }}`.
 (Free-tier email is rate-limited — fine for beta; add a custom SMTP before scale.)
 
-## 3. Google
-1. Google Cloud Console → APIs & Services → Credentials → **OAuth client ID**
-   → Web application. Authorized redirect URI:
-   `https://lmzzfmpbnodbpozkdmbo.supabase.co/auth/v1/callback`
-2. Copy the **Client ID** and **Client secret**.
-3. Supabase → Authentication → Providers → **Google** → enable, paste them.
-   (No client IDs are baked into the app — it uses Supabase's hosted flow.)
+App identity (for reference): bundle ID `com.satisapps.habitTracker`,
+URL scheme `activhealth`, deep link `activhealth://login-callback/`.
 
-## 4. Sign in with Apple (required by App Store when Google is offered)
-1. Apple Developer → Identifiers → create a **Services ID**; enable "Sign in
-   with Apple"; set the return URL to
-   `https://lmzzfmpbnodbpozkdmbo.supabase.co/auth/v1/callback`.
-2. Create a **Sign in with Apple key**; note the Key ID + Team ID.
-3. Supabase → Authentication → Providers → **Apple** → enable; enter the
-   Services ID, Team ID, Key ID, and key.
-4. Xcode/Codemagic: add the **Sign in with Apple** capability to the Runner
-   target. (The app's Apple button calls Supabase's OAuth flow.)
+> Sequencing: **Google works on the current build** the moment it's enabled
+> (hosted flow, nothing app-side). **Apple needs a new build** because it
+> requires the "Sign in with Apple" entitlement on the Runner target.
+
+## 3. Google  (≈10 min · no app rebuild)
+1. Google Cloud Console → **OAuth consent screen** → External; set app name
+   "ActivHealth", support email, save (Testing mode is fine to start).
+2. APIs & Services → Credentials → **Create OAuth client ID** → **Web
+   application**. Authorized redirect URI (exact):
+   `https://lmzzfmpbnodbpozkdmbo.supabase.co/auth/v1/callback`
+3. Copy the **Client ID** and **Client secret**.
+4. Supabase → Authentication → Providers → **Google** → enable, paste both, save.
+   (No client IDs are baked into the app — it uses Supabase's hosted flow, so
+   build 17 picks this up with no rebuild.)
+
+## 4. Sign in with Apple (≈20 min · NEEDS a new build)
+Requires an Apple Developer Program membership.
+1. Apple Developer → Certificates, IDs & Profiles → **Identifiers**:
+   - Ensure the **App ID** `com.satisapps.habitTracker` has the **Sign in with
+     Apple** capability ticked.
+   - Create a **Services ID** (e.g. `com.satisapps.habitTracker.signin` — it
+     MUST differ from the bundle ID). Enable **Sign in with Apple** →
+     Configure: Primary App ID = `com.satisapps.habitTracker`;
+     Domain = `lmzzfmpbnodbpozkdmbo.supabase.co`;
+     Return URL = `https://lmzzfmpbnodbpozkdmbo.supabase.co/auth/v1/callback`.
+2. **Keys** → create a key with **Sign in with Apple** enabled; download the
+   `.p8` (one-time). Note the **Key ID** and your **Team ID**.
+3. Supabase → Authentication → Providers → **Apple** → enable; enter:
+   Client ID = the **Services ID** (`…signin`), Team ID, Key ID, and paste the
+   `.p8` contents.
+4. **Add the entitlement + rebuild:** the Runner target needs the
+   `com.apple.developer.applesignin` entitlement (and the provisioning profile
+   must include the capability). Then Codemagic build 18+ → Apple goes live.
 
 ## 5. AI Coach (Claude Haiku) — set the Anthropic key
 The smart, adaptive coach (e.g. "I can only eat toast and beans, no protein

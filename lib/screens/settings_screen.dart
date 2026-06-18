@@ -10,6 +10,22 @@ import 'profile_screen.dart';
 import 'reminders_screen.dart';
 import 'sign_in_screen.dart';
 
+/// Human-readable label for the auth provider id.
+String _providerLabel(String? provider) {
+  switch (provider) {
+    case 'google':
+      return 'Google';
+    case 'apple':
+      return 'Apple';
+    case 'email':
+      return 'email';
+    case null:
+      return 'community sign-in';
+    default:
+      return provider;
+  }
+}
+
 /// Standard-app settings: profile, persona, reminders, community, privacy,
 /// account, about — the home for everything that isn't a daily action.
 class SettingsScreen extends StatelessWidget {
@@ -107,6 +123,33 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: Ah.s16),
           const _SectionHeader('Account'),
           _SettingsGroup(children: [
+            if (community.isSignedIn)
+              ListTile(
+                leading: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Ah.mint.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(Ah.rSm),
+                  ),
+                  child: const Icon(Icons.account_circle_outlined,
+                      color: Ah.mint, size: 20),
+                ),
+                title: Text(
+                    community.currentUserName ??
+                        community.currentUserEmail ??
+                        'Signed in',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  community.currentUserName != null &&
+                          community.currentUserEmail != null
+                      ? '${community.currentUserEmail} · via ${_providerLabel(community.currentUserProvider)}'
+                      : 'Signed in via ${_providerLabel(community.currentUserProvider)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             _SettingsTile(
               icon: Icons.lock_outline,
               color: Ah.info,
@@ -131,9 +174,31 @@ class SettingsScreen extends StatelessWidget {
                     icon: Icons.logout,
                     color: Ah.danger,
                     title: 'Sign out',
-                    subtitle: 'Signed in to community',
+                    subtitle: 'Leave the community on this device',
                     onTap: () async {
                       final messenger = ScaffoldMessenger.of(context);
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Sign out?'),
+                          content: Text(
+                            'You\'ll be signed out of the community as '
+                            '${community.currentUserEmail ?? "this account"}. '
+                            'Your activity, plan, and progress stay on this device.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: const Text('Sign out'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed != true) return;
                       await community.signOut();
                       messenger.showSnackBar(
                         const SnackBar(
