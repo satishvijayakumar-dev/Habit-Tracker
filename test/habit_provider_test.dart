@@ -43,6 +43,59 @@ void main() {
     });
   });
 
+  group('account deletion — local wipe', () {
+    test('deleteAllLocalData clears habits, profile, settings and state',
+        () async {
+      await provider.addHabit(makeHabit('Morning water'));
+      await provider.toggleToday(provider.habits.first.id!);
+      await provider.setUserName('Sam');
+      await provider.setSelectedPath('Runner');
+      await provider.setPro(true);
+      await provider.setCommunityOptIn(true);
+      await provider.saveProfile(UserProfile(
+        age: 30,
+        sex: 'male',
+        heightCm: 180,
+        weightKg: 78,
+        fitnessGoal: 'Feel strong',
+        activityLevel: 'moderate',
+        areaName: '',
+        shareApproxLocation: false,
+        updatedAt: DateTime.now(),
+      ));
+      await provider.addReminder(7, 30);
+
+      expect(provider.habits, isNotEmpty);
+      expect(provider.hasProfile, isTrue);
+
+      await provider.deleteAllLocalData();
+
+      expect(provider.habits, isEmpty);
+      expect(provider.activities, isEmpty);
+      expect(provider.localGroups, isEmpty);
+      expect(provider.bodyMetrics, isEmpty);
+      expect(provider.hasProfile, isFalse);
+      expect(provider.userName, isEmpty);
+      expect(provider.isPro, isFalse);
+      expect(provider.communityOptIn, isFalse);
+      expect(provider.reminderMinutes, isEmpty);
+      expect(provider.selectedPath, isNull);
+      expect(provider.hasCheckedInToday, isFalse);
+    });
+
+    test('a fresh load after wipe re-seeds default groups (clean slate)',
+        () async {
+      await provider.addHabit(makeHabit('Stretch'));
+      await provider.deleteAllLocalData();
+      expect(provider.localGroups, isEmpty);
+
+      await provider.load(); // simulates next app launch
+      expect(provider.habits, isEmpty);
+      expect(provider.hasProfile, isFalse);
+      expect(provider.localGroups.length, 3); // default groups re-seed
+    });
+  });
+
   group('habit CRUD + completions', () {
     test('add, toggle today, streak = 1, untoggle back to 0', () async {
       await provider.addHabit(makeHabit('Morning water'));

@@ -145,4 +145,19 @@ class InMemoryHabitStore implements HabitStore {
     final i = _groups.indexWhere((g) => g.id == group.id);
     if (i != -1) _groups[i] = group;
   }
+
+  @override
+  Future<void> wipeAll() async {
+    _settings.clear();
+    _profile = null;
+    _bodyMetrics.clear();
+    _habits.clear();
+    _completions.clear();
+    _activities.clear();
+    _groups.clear();
+    _habitId = 0;
+    _metricId = 0;
+    _activityId = 0;
+    _groupId = 0;
+  }
 }

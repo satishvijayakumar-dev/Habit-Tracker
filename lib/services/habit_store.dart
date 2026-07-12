@@ -40,4 +40,9 @@ abstract class HabitStore {
   Future<List<LocalGroup>> getLocalGroups();
   Future<int> insertLocalGroup(LocalGroup group);
   Future<void> updateLocalGroup(LocalGroup group);
+
+  /// Irreversibly delete ALL locally stored data — habits, completions,
+  /// activities, body metrics, profile, local groups, and settings. Used by
+  /// the account-deletion flow so nothing personal survives on-device.
+  Future<void> wipeAll();
 }

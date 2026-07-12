@@ -38,6 +38,7 @@ dependencies:
 
   # Geolocation — precise on device, only a coarse point is ever stored/shared
   geolocator: ^13.0.1
+  sentry_flutter: ^8.14.2
 
 dev_dependencies:
   flutter_test:
