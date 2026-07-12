@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ActivHealth — Legal</title>
+<style>
+  :root{--bg:#ffffff;--surface:#f6f8fa;--text:#111418;--muted:#5c6678;--border:#e3e8ef;--accent:#e23b57;}
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#0b0d12;--surface:#13161f;--text:#f2f5f9;--muted:#98a2b3;--border:#242a36;--accent:#ff5a5f;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);min-height:100vh;display:grid;place-items:center;
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .card{max-width:460px;width:calc(100% - 2.5rem);text-align:center;padding:2rem 0}
+  .dot{width:56px;height:56px;border-radius:15px;background:var(--accent);display:grid;place-items:center;
+    color:#fff;font-size:1.7rem;margin:0 auto 1rem}
+  h1{font-size:1.5rem;margin:.2rem 0 .3rem}
+  p{color:var(--muted);margin:.2rem 0 1.6rem}
+  a.link{display:block;border:1px solid var(--border);background:var(--surface);border-radius:12px;
+    padding:.95rem 1.1rem;margin:.6rem 0;color:var(--text);text-decoration:none;font-weight:500;
+    display:flex;justify-content:space-between;align-items:center}
+  a.link:hover{border-color:var(--accent)}
+  a.link span{color:var(--accent)}
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="dot">♥</div>
+    <h1>ActivHealth</h1>
+    <p>Legal &amp; privacy</p>
+    <a class="link" href="privacy-policy.html">Privacy Policy <span>→</span></a>
+    <a class="link" href="terms-of-service.html">Terms of Service <span>→</span></a>
+  </main>
+</body>
+</html>
