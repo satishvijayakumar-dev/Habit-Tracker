@@ -92,14 +92,15 @@ Suggested: **12+**. Because ActivHealth includes **user-generated content** (com
 - Email: `[a test email you control]` + note "use email magic-link" **or** provide Apple/Google test creds.
 - Because sign-in uses a magic link / OAuth, add a clear note: *"Tap Sign in → continue with email; a magic link is sent. Alternatively review with the provided Apple account."* Consider adding a simple demo login if magic-link is awkward for the reviewer.
 
-**2. User-generated content (Apple Guideline 1.2) — potential rejection risk.** Because the community has chat, Apple requires ALL of:
-- ✅ A EULA / terms — you now have Terms of Service.
-- ❓ A way to **report** objectionable content — a `reports` table exists in the backend; **confirm the in-app report UI is wired**.
-- ❓ A way to **block** abusive users — **confirm this exists**; if not, it should be added.
-- ❓ **Content filtering/moderation** and acting on reports within 24 hours.
+**2. User-generated content (Apple Guideline 1.2) — NOW ADDRESSED.** Because the community has chat, Apple requires ALL of:
+- ✅ A EULA / terms — Terms of Service.
+- ✅ A way to **report** objectionable content — long-press a message → Report (writes to `reports`).
+- ✅ A way to **block** abusive users — long-press a message → Block (per-user `blocked_users`, filters their messages).
+- ✅ Discoverable safety info — shield icon in each group chat explains guidelines + report/block.
+- ⚠️ **Acting on reports within 24 hours** — operational: monitor the `reports` table and act. Set up a way to see new reports (e.g. a Supabase dashboard query or a simple email alert).
 - ✅ Published contact info (support email).
 
-**If report + block aren't in the UI, that's a likely rejection.** Two options: (a) wire report + block before submitting, or (b) ship v1 with the community **disabled/hidden** and enable it in a fast follow once moderation is complete. Flag which you want.
+For the reviewer, mention in App Review notes: *"Community moderation: long-press any message to report it or block the sender; a safety guide is behind the shield icon in group chats."*
 
 **3. Sign in with Apple.** Because you offer Google sign-in, Apple **requires** Sign in with Apple to be offered too (Guideline 4.8) — now configured; verify it works on the submitted build.
 

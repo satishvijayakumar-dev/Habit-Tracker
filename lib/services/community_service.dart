@@ -113,6 +113,55 @@ class CommunityService {
     return true;
   }
 
+  // -- Safety / moderation (Apple Guideline 1.2) --
+
+  /// File a report about a message, user, or group. Stored in `reports`
+  /// (reporter-scoped RLS) for the operator to review within 24h.
+  Future<void> reportContent({
+    required String targetType, // 'message' | 'user' | 'group'
+    required String targetId,
+    String reason = '',
+  }) async {
+    final me = currentUserId;
+    if (me == null) return;
+    await _db.from('reports').insert({
+      'reporter_id': me,
+      'target_type': targetType,
+      'target_id': targetId,
+      'reason': reason,
+    });
+  }
+
+  /// Block a member so the current user no longer sees their messages.
+  Future<void> blockUser(String userId) async {
+    final me = currentUserId;
+    if (me == null || userId == me) return;
+    await _db.from('blocked_users').upsert({
+      'blocker_id': me,
+      'blocked_id': userId,
+    });
+  }
+
+  Future<void> unblockUser(String userId) async {
+    final me = currentUserId;
+    if (me == null) return;
+    await _db
+        .from('blocked_users')
+        .delete()
+        .match({'blocker_id': me, 'blocked_id': userId});
+  }
+
+  /// Ids the current user has blocked — used to filter chat client-side.
+  Future<Set<String>> blockedUserIds() async {
+    final me = currentUserId;
+    if (me == null) return {};
+    final rows = await _db
+        .from('blocked_users')
+        .select('blocked_id')
+        .eq('blocker_id', me) as List<dynamic>;
+    return rows.map((r) => r['blocked_id'] as String).toSet();
+  }
+
   // -- AI coach (server-side Claude Haiku proxy) --
   /// Returns a clever, adaptive coach reply, or null to fall back to the
   /// on-device rule-based coach. Requires sign-in (the function is JWT-gated)

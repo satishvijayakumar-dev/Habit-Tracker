@@ -25,6 +25,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
+  final Set<String> _blocked = {};
   RealtimeChannel? _channel;
   bool _loading = true;
 
@@ -36,17 +37,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> _load() async {
     try {
+      final blocked = await _community.blockedUserIds();
       final history = await _community.messageHistory(widget.groupId);
       if (!mounted) return;
       setState(() {
+        _blocked
+          ..clear()
+          ..addAll(blocked);
         _messages
           ..clear()
-          ..addAll(history);
+          ..addAll(history.where((m) => !_blocked.contains(m['sender_id'])));
         _loading = false;
       });
       _channel = _community.groupMessages(widget.groupId, (msg) {
         if (!mounted) return;
-        // Avoid duplicating a message we already have.
+        // Hide blocked members and avoid duplicating a message we already have.
+        if (_blocked.contains(msg['sender_id'])) return;
         if (_messages.any((m) => m['id'] == msg['id'])) return;
         setState(() => _messages.add(msg));
         _jumpToEnd();
@@ -87,7 +93,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget build(BuildContext context) {
     final me = _community.currentUserId;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.groupName)),
+      appBar: AppBar(
+        title: Text(widget.groupName),
+        actions: [
+          IconButton(
+            tooltip: 'Safety & guidelines',
+            icon: const Icon(Icons.shield_outlined),
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Keeping it safe'),
+                content: const Text(
+                  'Be respectful — no harassment, hate, or unsafe advice.\n\n'
+                  'Long-press any message to report it or block the sender. '
+                  'We review reports within 24 hours and remove content or '
+                  'members that break the rules.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Got it'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -102,9 +134,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         itemBuilder: (context, i) {
                           final m = _messages[i];
                           final mine = m['sender_id'] == me;
-                          return _Bubble(
+                          final bubble = _Bubble(
                             body: (m['body'] as String?) ?? '',
                             mine: mine,
+                          );
+                          // Others' messages can be reported or blocked
+                          // (Apple Guideline 1.2). Your own can't.
+                          if (mine) return bubble;
+                          return GestureDetector(
+                            onLongPress: () => _showModerationSheet(m),
+                            child: bubble,
                           );
                         },
                       ),
@@ -141,6 +180,82 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ],
       ),
     );
+  }
+
+  /// Long-press a member's message → report it or block them.
+  void _showModerationSheet(Map<String, dynamic> msg) {
+    HapticFeedback.selectionClick();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Ah.surface1,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.flag_outlined, color: Ah.warning),
+              title: const Text('Report message'),
+              subtitle: const Text('Flag this to our team for review'),
+              onTap: () {
+                Navigator.of(sheetCtx).pop();
+                _report(msg);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.block, color: Ah.danger),
+              title: const Text('Block this member'),
+              subtitle: const Text("You won't see their messages anymore"),
+              onTap: () {
+                Navigator.of(sheetCtx).pop();
+                _block(msg);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.close, color: Ah.textSecondary),
+              title: const Text('Cancel'),
+              onTap: () => Navigator.of(sheetCtx).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _report(Map<String, dynamic> msg) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final id = msg['id'] as String?;
+    if (id == null) return;
+    try {
+      await _community.reportContent(targetType: 'message', targetId: id);
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Thanks — reported. We review reports within 24 hours.'),
+      ));
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text("Couldn't send the report. Please try again."),
+      ));
+    }
+  }
+
+  Future<void> _block(Map<String, dynamic> msg) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final userId = msg['sender_id'] as String?;
+    if (userId == null) return;
+    try {
+      await _community.blockUser(userId);
+      if (!mounted) return;
+      setState(() {
+        _blocked.add(userId);
+        _messages.removeWhere((m) => m['sender_id'] == userId);
+      });
+      messenger.showSnackBar(const SnackBar(
+        content: Text("Blocked. You won't see this member's messages."),
+      ));
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text("Couldn't block right now. Please try again."),
+      ));
+    }
   }
 
   Widget _empty(BuildContext context) => Center(
