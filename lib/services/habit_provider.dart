@@ -86,6 +86,31 @@ class HabitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Irreversibly wipe every trace of the user from this device — the SQLite
+  /// store plus all in-memory state and scheduled reminders. Used by the
+  /// account-deletion flow (paired with server-side deletion). After this the
+  /// app is back to a brand-new, unonboarded state.
+  Future<void> deleteAllLocalData() async {
+    await _db.wipeAll();
+    await _notif.syncDailyReminders(const []); // cancel all scheduled reminders
+
+    _habits = [];
+    _activities = [];
+    _localGroups = [];
+    _bodyMetrics = [];
+    _completions.clear();
+    _completionDetails.clear();
+    _selectedPath = null;
+    _profile = null;
+    _userName = '';
+    _isPro = false;
+    _communityOptIn = false;
+    _reminderMinutes = [];
+    _todayCheckIn = {};
+
+    notifyListeners();
+  }
+
   Future<void> saveProfile(UserProfile profile) async {
     final saved = profile.copyWith(id: 1, updatedAt: DateTime.now());
     await _db.saveUserProfile(saved);

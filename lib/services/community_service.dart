@@ -90,6 +90,29 @@ class CommunityService {
 
   Future<void> signOut() => _db.auth.signOut();
 
+  /// Permanently delete the signed-in user's cloud account and ALL their
+  /// community data (profile, groups, messages — cascaded from auth.users via
+  /// the `delete-account` edge function, which runs with the service role).
+  /// Signs out afterwards. Returns true on success.
+  ///
+  /// Throws if not signed in or the server call fails, so the UI can keep the
+  /// user informed rather than silently leaving a live cloud account behind.
+  Future<bool> deleteAccount() async {
+    if (!isSignedIn) return false;
+    final res = await _db.functions.invoke('delete-account');
+    final data = res.data;
+    final ok = data is Map && data['deleted'] == true;
+    if (!ok) {
+      throw Exception('Account deletion did not complete on the server.');
+    }
+    try {
+      await _db.auth.signOut();
+    } catch (_) {
+      // Already deleted server-side; a failed local sign-out is harmless.
+    }
+    return true;
+  }
+
   // -- AI coach (server-side Claude Haiku proxy) --
   /// Returns a clever, adaptive coach reply, or null to fall back to the
   /// on-device rule-based coach. Requires sign-in (the function is JWT-gated)

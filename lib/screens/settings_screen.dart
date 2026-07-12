@@ -26,6 +26,71 @@ String _providerLabel(String? provider) {
   }
 }
 
+/// Permanently deletes the user's cloud account (via the delete-account edge
+/// function) and wipes all on-device data, then returns to a fresh app state.
+/// Two-step confirmation so it can never fire by accident. Required by Apple
+/// App Store Guideline 5.1.1(v) for any app offering account creation.
+Future<void> _confirmDeleteAccount(
+  BuildContext context,
+  CommunityService community,
+  HabitProvider provider,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      icon: const Icon(Icons.delete_forever_outlined, color: Ah.danger),
+      title: const Text('Delete your account?'),
+      content: Text(
+        'This permanently deletes your account'
+        '${community.currentUserEmail != null ? ' (${community.currentUserEmail})' : ''} '
+        'and everything tied to it — your community profile, groups, and '
+        'messages — plus all activity, plans, and progress on this device.\n\n'
+        'This cannot be undone.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: Ah.danger),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Delete account'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  if (!context.mounted) return;
+
+  final navigator = Navigator.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    await community.deleteAccount(); // cloud account + community data, then sign-out
+    await provider.deleteAllLocalData(); // on-device wipe
+    navigator.pop(); // dismiss progress
+    navigator.popUntil((route) => route.isFirst); // back to a fresh start
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Your account has been deleted.')),
+    );
+  } catch (_) {
+    navigator.pop(); // dismiss progress — keep the account intact on failure
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+            "Couldn't delete your account. Check your connection and try again."),
+      ),
+    );
+  }
+}
+
 /// Standard-app settings: profile, persona, reminders, community, privacy,
 /// account, about — the home for everything that isn't a daily action.
 class SettingsScreen extends StatelessWidget {
@@ -215,6 +280,14 @@ class SettingsScreen extends StatelessWidget {
                       MaterialPageRoute(builder: (_) => const SignInScreen()),
                     ),
                   ),
+            if (community.isSignedIn)
+              _SettingsTile(
+                icon: Icons.delete_forever_outlined,
+                color: Ah.danger,
+                title: 'Delete account',
+                subtitle: 'Permanently remove your account and data',
+                onTap: () => _confirmDeleteAccount(context, community, provider),
+              ),
           ]),
           const SizedBox(height: Ah.s16),
           Center(

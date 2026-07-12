@@ -1,7 +1,7 @@
 name: habit_tracker
 description: ActivHealth designs tiny behavior loops for health, focus, calm, recovery, and mindful routines.
 publish_to: 'none'
-version: 2.1.0+18
+version: 2.1.0+19
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -38,6 +38,7 @@ dependencies:
 
   # Geolocation — precise on device, only a coarse point is ever stored/shared
   geolocator: ^13.0.1
+  sentry_flutter: ^8.14.2
 
 dev_dependencies:
   flutter_test:

@@ -396,4 +396,22 @@ class DatabaseService implements HabitStore {
     final map = metric.toMap()..remove('id');
     return db.insert('body_metrics', map);
   }
+
+  @override
+  Future<void> wipeAll() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final table in const [
+        'completions',
+        'habits',
+        'activities',
+        'local_groups',
+        'body_metrics',
+        'user_profile',
+        'settings',
+      ]) {
+        await txn.delete(table);
+      }
+    });
+  }
 }
